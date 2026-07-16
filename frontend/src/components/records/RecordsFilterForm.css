@@ -1,0 +1,109 @@
+.records-filter {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.records-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.filter-field input,
+.filter-field select {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #111827;
+  background: #ffffff;
+}
+
+.filter-field input:focus,
+.filter-field select:focus {
+  outline: 2px solid #7c5cfc;
+  outline-offset: 1px;
+  border-color: #7c5cfc;
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-range-inputs input {
+  flex: 1;
+  min-width: 0;
+}
+
+.records-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background: #f3f4f6;
+}
+
+.btn-primary {
+  background: #7c5cfc;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #6d4de6;
+}
+.date-range-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.date-range-clear:hover {
+  background: #f3f4f6;
+  color: #374151;
+}

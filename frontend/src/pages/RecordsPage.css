@@ -1,0 +1,65 @@
+.records-page {
+  max-width: 1200px;
+}
+
+.records-page-header {
+  margin-bottom: 20px;
+}
+
+.records-page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px;
+}
+
+.records-page-header p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+.records-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.records-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.records-tab:hover {
+  color: #374151;
+}
+
+.records-tab.is-active {
+  color: #7c5cfc;
+  border-bottom-color: #7c5cfc;
+}
+
+.records-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: #9ca3af;
+}
+
+.records-tab-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
