@@ -161,3 +161,17 @@
 .row-menu-danger {
   color: #ef4444 !important;
 }
+.row-menu-dropdown li button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.row-menu-dropdown li button:disabled:hover {
+  background: none;
+}
+.row-menu-dropdown li button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.row-menu-dropdown li button:disabled:hover {
+  background: none;
+}

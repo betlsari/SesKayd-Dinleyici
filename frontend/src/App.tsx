@@ -18,6 +18,7 @@ const mockUser: CurrentUser = {
   online: true,
 };
 
+const canDownloadRecordings = mockUser.role === "Yönetici";
 export default function App() {
   const [currentCompany, setCurrentCompany] = useState<Company>(
     mockCompanies[0],
@@ -33,7 +34,12 @@ export default function App() {
         onCompanyChange={setCurrentCompany}
       >
         <Routes>
-          <Route path="/kayitlar" element={<RecordsPage />} />
+          <Route
+            path="/kayitlar"
+            element={
+              <RecordsPage canDownloadRecordings={canDownloadRecordings} />
+            }
+          />
           <Route path="/arama-kayitlari" element={<div>Arama kayıtları</div>} />
           <Route path="/istatistikler" element={<div>İstatistikler</div>} />
           <Route path="/raporlar" element={<div>Raporlar</div>} />

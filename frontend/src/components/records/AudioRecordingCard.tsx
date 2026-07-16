@@ -8,13 +8,23 @@ import {
   RotateCw,
   Volume2,
   Download,
+  ChevronLeft,
+  ChevronRight,
+  Repeat,
+  X,
 } from "lucide-react";
 import type { CallRecord } from "../../types/record";
+import ListenLogsTable from "./ListenLogsTable";
 import "./AudioRecordingCard.css";
 
 interface AudioRecordingCardProps {
   record: CallRecord;
   autoPlay: boolean;
+  canDownload: boolean;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
 }
 
 // Saniyeyi "04:32" gibi mm:ss formatına çeviriyoruz.
@@ -48,13 +58,31 @@ function buildWaveformBars(count: number): number[] {
 
 const WAVEFORM_BAR_COUNT = 90;
 
+// NOT: Bu bileşen, RecordDetailPanel içinde `key={record.id}` ile render
+// ediliyor. Böylece "önceki/sonraki kayıt" geçişinde bileşen tamamen yeniden
+// mount olur ve tüm state'ler (elapsed, isPlaying, selection...) otomatik
+// olarak sıfırlanır — bunu bir useEffect içinde elle yapmaya gerek kalmaz.
 export default function AudioRecordingCard({
   record,
   autoPlay,
+  canDownload,
+  hasPrevious,
+  hasNext,
+  onPrevious,
+  onNext,
 }: AudioRecordingCardProps) {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [elapsed, setElapsed] = useState(0);
+  // Seçili aralık (loop/vurgu bölgesi), bar index'i olarak tutulur (0..WAVEFORM_BAR_COUNT)
+  const [selection, setSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [loopEnabled, setLoopEnabled] = useState(false);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waveformRef = useRef<HTMLDivElement>(null);
   const waveformBars = useMemo(() => buildWaveformBars(WAVEFORM_BAR_COUNT), []);
 
   // Oynatım simülasyonu: gerçek <audio> elementi bağlanana kadar saniyeyi
@@ -63,18 +91,32 @@ export default function AudioRecordingCard({
     if (isPlaying) {
       intervalRef.current = setInterval(() => {
         setElapsed((prev) => {
-          if (prev >= record.durationSeconds) {
+          const loopStartSec = selection
+            ? (selection.start / WAVEFORM_BAR_COUNT) * record.durationSeconds
+            : 0;
+          const loopEndSec = selection
+            ? (selection.end / WAVEFORM_BAR_COUNT) * record.durationSeconds
+            : record.durationSeconds;
+
+          const upperBound =
+            loopEnabled && selection ? loopEndSec : record.durationSeconds;
+          const next = prev + 1;
+
+          if (next >= upperBound) {
+            if (loopEnabled && selection) {
+              return loopStartSec;
+            }
             setIsPlaying(false);
-            return record.durationSeconds;
+            return upperBound;
           }
-          return prev + 1;
+          return next;
         });
       }, 1000);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isPlaying, record.durationSeconds]);
+  }, [isPlaying, record.durationSeconds, selection, loopEnabled]);
 
   function seekBy(deltaSeconds: number) {
     setElapsed((prev) =>
@@ -83,11 +125,64 @@ export default function AudioRecordingCard({
   }
 
   function handleDownload() {
+    if (!canDownload) return;
     // TODO: .NET API'den kayıt dosyasını indirme (örn. GET /api/records/{id}/download)
     console.log("İndirilecek kayıt:", record.id);
   }
 
+  function barIndexFromEvent(event: React.MouseEvent<HTMLDivElement>): number {
+    const rect = waveformRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    const ratio = Math.min(
+      1,
+      Math.max(0, (event.clientX - rect.left) / rect.width),
+    );
+    return Math.round(ratio * WAVEFORM_BAR_COUNT);
+  }
+
+  function handleWaveformMouseDown(event: React.MouseEvent<HTMLDivElement>) {
+    const index = barIndexFromEvent(event);
+    setIsDragging(true);
+    setSelection({ start: index, end: index });
+  }
+
+  function handleWaveformMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    if (!isDragging) return;
+    const index = barIndexFromEvent(event);
+    setSelection((prev) => (prev ? { start: prev.start, end: index } : null));
+  }
+
+  function finishDragIfTrivial() {
+    setIsDragging(false);
+    setSelection((prev) => {
+      if (!prev) return null;
+      // Tek noktaya tıklama = seçim yok, sadece o konuma sar.
+      if (Math.abs(prev.end - prev.start) < 1) return null;
+      return prev;
+    });
+  }
+
+  function clearSelection() {
+    setSelection(null);
+    setLoopEnabled(false);
+  }
+
+  const selectionRange = selection
+    ? {
+        from: Math.min(selection.start, selection.end),
+        to: Math.max(selection.start, selection.end),
+      }
+    : null;
+
   const progressRatio = elapsed / record.durationSeconds;
+  const progressBarIndex = progressRatio * WAVEFORM_BAR_COUNT;
+
+  const selectionStartSec = selectionRange
+    ? (selectionRange.from / WAVEFORM_BAR_COUNT) * record.durationSeconds
+    : null;
+  const selectionEndSec = selectionRange
+    ? (selectionRange.to / WAVEFORM_BAR_COUNT) * record.durationSeconds
+    : null;
 
   return (
     <div className="audio-recording-card">
@@ -97,6 +192,8 @@ export default function AudioRecordingCard({
           type="button"
           className="icon-button-small"
           aria-label="Kaydı indir"
+          disabled={!canDownload}
+          title={canDownload ? "Kaydı indir" : "İndirme yetkiniz yok"}
           onClick={handleDownload}
         >
           <Download size={16} />
@@ -105,21 +202,74 @@ export default function AudioRecordingCard({
 
       <p className="audio-recording-filename">{buildFileName(record)}</p>
 
-      <div className="waveform" aria-hidden="true">
-        {waveformBars.map((height, index) => (
-          <span
-            key={index}
-            className={
-              "waveform-bar" +
-              (index / WAVEFORM_BAR_COUNT <= progressRatio ? " is-played" : "")
-            }
-            style={{ height: `${height}px` }}
-          />
-        ))}
+      <div
+        className="waveform"
+        ref={waveformRef}
+        onMouseDown={handleWaveformMouseDown}
+        onMouseMove={handleWaveformMouseMove}
+        onMouseUp={finishDragIfTrivial}
+        onMouseLeave={() => isDragging && finishDragIfTrivial()}
+      >
+        {waveformBars.map((height, index) => {
+          const isPlayed = index <= progressBarIndex;
+          const isSelected =
+            selectionRange &&
+            index >= selectionRange.from &&
+            index <= selectionRange.to;
+          return (
+            <span
+              key={index}
+              className={
+                "waveform-bar" +
+                (isSelected ? " is-selected" : "") +
+                (isPlayed ? " is-played" : "")
+              }
+              style={{ height: `${height}px` }}
+            />
+          );
+        })}
       </div>
+
+      {selectionRange && (
+        <div className="waveform-selection-bar">
+          <span>
+            Seçili aralık: {formatTime(selectionStartSec ?? 0)} –{" "}
+            {formatTime(selectionEndSec ?? 0)}
+          </span>
+          <button
+            type="button"
+            className={
+              "selection-loop-toggle" + (loopEnabled ? " is-active" : "")
+            }
+            onClick={() => setLoopEnabled((prev) => !prev)}
+          >
+            <Repeat size={13} />
+            Döngü
+          </button>
+          <button
+            type="button"
+            className="selection-clear"
+            onClick={clearSelection}
+          >
+            <X size={13} />
+            Temizle
+          </button>
+        </div>
+      )}
 
       <div className="audio-recording-controls">
         <div className="playback-controls">
+          <button
+            type="button"
+            className="icon-button-small"
+            onClick={onPrevious}
+            disabled={!hasPrevious}
+            aria-label="Önceki kayıt"
+            title="Önceki kayıt"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
           <button
             type="button"
             className="skip-button"
@@ -162,6 +312,17 @@ export default function AudioRecordingCard({
             <RotateCw size={15} />
             <span>10s</span>
           </button>
+
+          <button
+            type="button"
+            className="icon-button-small"
+            onClick={onNext}
+            disabled={!hasNext}
+            aria-label="Sonraki kayıt"
+            title="Sonraki kayıt"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
 
         <div className="secondary-controls">
@@ -180,31 +341,11 @@ export default function AudioRecordingCard({
         </div>
       </div>
 
-      <div className="listen-logs">
-        <h3>Dinleme Logları</h3>
-        <table className="listen-logs-table">
-          <thead>
-            <tr>
-              <th>Tarih / Saat</th>
-              <th>Kullanıcı</th>
-              <th>Rol</th>
-              <th>İşlem</th>
-              <th>IP Adresi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {record.listenLogs.map((log) => (
-              <tr key={log.id}>
-                <td>{log.dateTime}</td>
-                <td>{log.user}</td>
-                <td>{log.role}</td>
-                <td>{log.action}</td>
-                <td>{log.ipAddress}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/*
+        Dinleme logları artık kaydın kendi verisi değil; audit log
+        sisteminden read-only olarak ayrı çekiliyor (bkz. auditLogService.ts).
+      */}
+      <ListenLogsTable recordId={record.id} />
     </div>
   );
 }

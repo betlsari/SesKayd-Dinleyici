@@ -6,7 +6,7 @@ export interface ListenLog {
   dateTime: string;
   user: string;
   role: string;
-  action: string;
+  action: "Dinleme" | "İndirme";
   ipAddress: string;
 }
 
@@ -22,7 +22,9 @@ export interface CallRecord {
   company: string;
   fileSizeKB: number;
   format: string;
-  listenLogs: ListenLog[];
+  // NOT: "listenLogs" burada YOK. Dinleme logları artık kaydın kendi
+  // verisi değil, audit log sisteminden ayrıca (read-only) çekiliyor.
+  // Bkz. src/services/auditLogService.ts ve ListenLogsTable.tsx
 }
 
 export interface RecordFilters {

@@ -4,35 +4,16 @@ import RecordsFilterForm from "../components/records/RecordsFilterForm";
 import RecordsTable from "../components/records/RecordsTable";
 import Pagination from "../components/records/Pagination";
 import RecordDetailPanel from "../components/records/RecordDetailPanel";
-import type { CallRecord, ListenLog, RecordFilters } from "../types/record";
+import type { CallRecord, RecordFilters } from "../types/record";
 import "./RecordsPage.css";
 
 const PAGE_SIZE = 10;
 
-// Her kayıt için birkaç mock dinleme logu üretiyoruz.
-function generateListenLogs(recordIndex: number): ListenLog[] {
-  const viewers = [
-    { user: "berkay.guler", role: "Yönetici" },
-    { user: "zeynep.kaya", role: "Analist" },
-    { user: "mehmet.can", role: "Supervisor" },
-  ];
-
-  return Array.from({ length: 2 + (recordIndex % 2) }, (_, logIndex) => {
-    const viewer = viewers[(recordIndex + logIndex) % viewers.length];
-    const minute = String((logIndex * 13 + recordIndex) % 60).padStart(2, "0");
-    return {
-      id: `log-${recordIndex}-${logIndex}`,
-      dateTime: `13.07.2025 14:${minute}:22`,
-      user: viewer.user,
-      role: viewer.role,
-      action: "Dinleme",
-      ipAddress: `192.168.1.${10 + ((recordIndex + logIndex) % 200)}`,
-    };
-  });
-}
-
 // Şimdilik sabit (mock) veri üretiyoruz. İlerde bu, .NET API'den
 // GET /api/records?dateFrom=...&callerNumber=... gibi bir çağrıyla gelecek.
+//
+// NOT: Dinleme logları burada YOK — onlar artık audit log sisteminden
+// (read-only) ayrıca çekiliyor. Bkz. src/services/auditLogService.ts
 function generateMockRecords(): CallRecord[] {
   const companies = ["Demo A.Ş.", "Örnek Ltd."];
   const agents = [
@@ -59,7 +40,6 @@ function generateMockRecords(): CallRecord[] {
       company: companies[index % companies.length],
       fileSizeKB: 1800 + ((index * 137) % 6000),
       format: "WAV",
-      listenLogs: generateListenLogs(index),
     };
   });
 }
@@ -79,7 +59,15 @@ function parseDateTime(value: string): number {
 
 type ActiveTab = "list" | "detail";
 
-export default function RecordsPage() {
+interface RecordsPageProps {
+  // Kullanıcının kayıt dosyalarını indirme yetkisi var mı?
+  // Backend hazır olunca gerçek rol/izin (claims) kontrolüyle değiştirilecek.
+  canDownloadRecordings: boolean;
+}
+
+export default function RecordsPage({
+  canDownloadRecordings,
+}: RecordsPageProps) {
   const [filters, setFilters] = useState<RecordFilters | null>(null);
   const [page, setPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
@@ -146,6 +134,15 @@ export default function RecordsPage() {
     page * PAGE_SIZE,
   );
 
+  // Kayıt Detayları içindeki "Önceki/Sonraki kayıt" gezinmesi için,
+  // seçili kaydın filtrelenmiş+sıralanmış tüm liste içindeki konumunu buluyoruz
+  // (sadece o anki sayfayla sınırlı değil).
+  const currentIndex = selectedRecord
+    ? sortedRecords.findIndex((r) => r.id === selectedRecord.id)
+    : -1;
+  const hasPrevious = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < sortedRecords.length - 1;
+
   function handleSearch(nextFilters: RecordFilters) {
     setFilters(nextFilters);
     setPage(1);
@@ -175,7 +172,21 @@ export default function RecordsPage() {
     setActiveTab("list");
   }
 
+  // Kayıt Detayları içindeki "Önceki kayıt" / "Sonraki kayıt" butonları.
+  function handlePreviousRecord() {
+    if (!hasPrevious) return;
+    setSelectedRecord(sortedRecords[currentIndex - 1]);
+    setAutoPlayDetail(true);
+  }
+
+  function handleNextRecord() {
+    if (!hasNext) return;
+    setSelectedRecord(sortedRecords[currentIndex + 1]);
+    setAutoPlayDetail(true);
+  }
+
   function handleDownload(record: CallRecord) {
+    if (!canDownloadRecordings) return;
     // TODO: .NET API'den kayıt dosyasını indirme (örn. GET /api/records/{id}/download)
     console.log("İndirilecek kayıt:", record.id);
   }
@@ -242,6 +253,7 @@ export default function RecordsPage() {
             onOpenDetail={handleOpenDetail}
             onDownload={handleDownload}
             onDelete={handleDelete}
+            canDownload={canDownloadRecordings}
           />
 
           <Pagination
@@ -256,6 +268,11 @@ export default function RecordsPage() {
             key={selectedRecord.id}
             record={selectedRecord}
             autoPlay={autoPlayDetail}
+            canDownload={canDownloadRecordings}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            onPrevious={handlePreviousRecord}
+            onNext={handleNextRecord}
           />
         )
       )}

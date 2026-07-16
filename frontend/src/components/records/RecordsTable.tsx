@@ -21,6 +21,9 @@ interface RecordsTableProps {
   onOpenDetail: (record: CallRecord) => void;
   onDownload?: (record: CallRecord) => void;
   onDelete?: (record: CallRecord) => void;
+  // Kullanıcının kayıt dosyalarını indirme yetkisi var mı?
+  // Backend hazır olunca gerçek rol/izin (claims) kontrolüyle değiştirilecek.
+  canDownload?: boolean;
 }
 
 // Saniyeyi "04:32" gibi mm:ss formatına çeviriyoruz.
@@ -39,6 +42,7 @@ export default function RecordsTable({
   onOpenDetail,
   onDownload = () => {},
   onDelete = () => {},
+  canDownload = true,
 }: RecordsTableProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -159,7 +163,12 @@ export default function RecordsTable({
                           <button
                             type="button"
                             role="menuitem"
+                            disabled={!canDownload}
+                            title={
+                              canDownload ? undefined : "İndirme yetkiniz yok"
+                            }
                             onClick={() => {
+                              if (!canDownload) return;
                               onDownload(record);
                               setOpenMenuId(null);
                             }}
