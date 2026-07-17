@@ -4,6 +4,7 @@ import RecordsFilterForm from "../components/records/RecordsFilterForm";
 import RecordsTable from "../components/records/RecordsTable";
 import Pagination from "../components/records/Pagination";
 import RecordDetailPanel from "../components/records/RecordDetailPanel";
+import { canDeleteRecords } from "../auth/permissions";
 import type { CallRecord, RecordFilters } from "../types/record";
 import "./RecordsPage.css";
 
@@ -74,13 +75,21 @@ interface RecordsPageProps {
   // o şirketin verisini dönecek. Şu an backend olmadığı için
   // client tarafında filtreliyoruz.
   currentCompanyName: string;
+  // Silme yetkisi kontrolü için oturum açmış kullanıcının rolü.
+  // Bkz. src/auth/permissions.ts -> canDeleteRecords.
+  // TODO: .NET + Keycloak entegrasyonu sonrası bu değer gerçek
+  // JWT/claim'den gelecek; bu prop'un imzası aynı kalacak.
+  currentUserRole: string;
 }
 
 // NOT: Bu sayfada ve alt bileşenlerinde (RecordsTable, RecordDetailPanel,
 // AudioRecordingCard) KASITLI olarak bir "canDownloadRecordings" / indirme
 // kavramı YOK. Ses kayıtları hiçbir kullanıcı rolü için indirilemez —
 // bkz. AudioRecordingCard.tsx başındaki backend güvenlik notları.
-export default function RecordsPage({ currentCompanyName }: RecordsPageProps) {
+export default function RecordsPage({
+  currentCompanyName,
+  currentUserRole,
+}: RecordsPageProps) {
   const [filters, setFilters] = useState<RecordFilters | null>(null);
   const [page, setPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
@@ -89,6 +98,12 @@ export default function RecordsPage({ currentCompanyName }: RecordsPageProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>("list");
   const [selectedRecord, setSelectedRecord] = useState<CallRecord | null>(null);
   const [autoPlayDetail, setAutoPlayDetail] = useState(false);
+
+  // Kayıt silme UI'ının gösterilip gösterilmeyeceğini ve gerçek
+  // silme işleminin yürütülüp yürütülmeyeceğini TEK bu değer belirler.
+  // Hem RecordsTable'a (görünürlük) hem handleDelete'e (fiili kontrol)
+  // aynı sonuç geçilir, böylece iki yer birbirinden asla sapmaz.
+  const canDelete = canDeleteRecords(currentUserRole);
 
   // GÜVENLİK: Kullanıcının seçtiği şirket ne olursa olsun, aşağıdaki
   // adımların HİÇBİRİ bu scope'un dışına çıkamaz. Filtre formu ve
@@ -204,9 +219,19 @@ export default function RecordsPage({ currentCompanyName }: RecordsPageProps) {
   }
 
   function handleDelete(record: CallRecord) {
+    // GÜVENLİK: UI'da buton gizli olsa bile (RecordsTable canDelete=false
+    // ise zaten menü hiç render edilmiyor), bu fonksiyon YİNE DE kontrol
+    // eder. Böylece iki yerden biri atlanırsa bile yetkisiz silme
+    // gerçekleşmez. Gerçek yetkilendirme backend'de yapılacak; bu sadece
+    // mock/UI aşamasında tutarlılık için ikinci bir savunma katmanıdır.
+    if (!canDelete) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Yetkisiz silme denemesi engellendi: rol="${currentUserRole}", recordId=${record.id}`,
+      );
+      return;
+    }
     // TODO: .NET API'ye silme isteği (örn. DELETE /api/records/{id})
-    // TODO: Bu aksiyon şu an rol kontrolü olmadan herkese açık — ayrı
-    // bir "canDelete" yetkisi ile kısıtlanması gerekiyor.
     console.log("Silinecek kayıt:", record.id);
   }
 
@@ -268,6 +293,7 @@ export default function RecordsPage({ currentCompanyName }: RecordsPageProps) {
             onPlay={handlePlay}
             onOpenDetail={handleOpenDetail}
             onDelete={handleDelete}
+            canDelete={canDelete}
           />
 
           <Pagination

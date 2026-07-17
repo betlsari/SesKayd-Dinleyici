@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, X, AlertCircle } from "lucide-react";
 import type { RecordFilters } from "../../types/record";
 import "./RecordsFilterForm.css";
 
@@ -21,6 +21,22 @@ export default function RecordsFilterForm({
   onSearch,
 }: RecordsFilterFormProps) {
   const [filters, setFilters] = useState<RecordFilters>(emptyFilters);
+  // Kullanıcı "Ara"ya bastıktan sonra hata mesajını göstermeye başlıyoruz;
+  // her tuşta hemen kırmızı çerçeve göstermek yerine, ilk denemeden sonra
+  // gerçek zamanlı geri bildirim veriyoruz.
+  const [hasAttemptedSearch, setHasAttemptedSearch] = useState(false);
+
+  // Tarih aralığı geçersiz mi? (başlangıç, bitişten sonra olamaz)
+  // İkisi de doluyken kontrol ediyoruz; sadece biri doluysa hata yok.
+  const dateRangeError = useMemo(() => {
+    if (!filters.dateFrom || !filters.dateTo) return null;
+    if (filters.dateFrom > filters.dateTo) {
+      return "Başlangıç tarihi, bitiş tarihinden sonra olamaz.";
+    }
+    return null;
+  }, [filters.dateFrom, filters.dateTo]);
+
+  const showDateRangeError = hasAttemptedSearch && dateRangeError !== null;
 
   function updateField<K extends keyof RecordFilters>(
     field: K,
@@ -30,11 +46,16 @@ export default function RecordsFilterForm({
   }
 
   function handleSearch() {
+    setHasAttemptedSearch(true);
+    // Geçersiz tarih aralığıyla arama yapılmasını engelliyoruz; hata
+    // mesajı zaten kullanıcıya gösteriliyor, burada sessizce çıkıyoruz.
+    if (dateRangeError) return;
     onSearch(filters);
   }
 
   function handleClear() {
     setFilters(emptyFilters);
+    setHasAttemptedSearch(false);
     onSearch(emptyFilters);
   }
 
@@ -43,11 +64,19 @@ export default function RecordsFilterForm({
       <div className="records-filter-grid">
         <div className="filter-field">
           <label htmlFor="dateFrom">Tarih Aralığı</label>
-          <div className="date-range-inputs">
+          <div
+            className={
+              "date-range-inputs" + (showDateRangeError ? " has-error" : "")
+            }
+          >
             <input
               id="dateFrom"
               type="date"
               value={filters.dateFrom}
+              aria-invalid={showDateRangeError}
+              aria-describedby={
+                showDateRangeError ? "date-range-error" : undefined
+              }
               onChange={(e) => updateField("dateFrom", e.target.value)}
             />
             <span>–</span>
@@ -55,6 +84,10 @@ export default function RecordsFilterForm({
               type="date"
               aria-label="Bitiş tarihi"
               value={filters.dateTo}
+              aria-invalid={showDateRangeError}
+              aria-describedby={
+                showDateRangeError ? "date-range-error" : undefined
+              }
               onChange={(e) => updateField("dateTo", e.target.value)}
             />
             {(filters.dateFrom || filters.dateTo) && (
@@ -71,6 +104,16 @@ export default function RecordsFilterForm({
               </button>
             )}
           </div>
+          {showDateRangeError && (
+            <p
+              id="date-range-error"
+              className="filter-field-error"
+              role="alert"
+            >
+              <AlertCircle size={13} />
+              {dateRangeError}
+            </p>
+          )}
         </div>
 
         <div className="filter-field">

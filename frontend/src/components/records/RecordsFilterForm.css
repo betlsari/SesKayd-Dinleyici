@@ -53,6 +53,26 @@
   min-width: 0;
 }
 
+/* dateFrom > dateTo gibi geçersiz bir aralık girildiğinde inputları
+   ve yardımcı mesajı vurgulamak için (bkz. RecordsFilterForm.tsx
+   dateRangeError / showDateRangeError). */
+.date-range-inputs.has-error input {
+  border-color: #ef4444;
+}
+
+.date-range-inputs.has-error input:focus {
+  outline-color: #ef4444;
+}
+
+.filter-field-error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #ef4444;
+}
+
 .records-filter-actions {
   display: flex;
   justify-content: flex-end;

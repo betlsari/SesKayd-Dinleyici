@@ -45,6 +45,8 @@ function buildWaveformBars(count: number): number[] {
 }
 
 const WAVEFORM_BAR_COUNT = 90;
+// Klavye ile ok tuşlarında ne kadar ileri/geri sarılacağı (saniye).
+const KEYBOARD_SEEK_SECONDS = 5;
 
 export default function AudioRecordingCard({
   record,
@@ -112,33 +114,57 @@ export default function AudioRecordingCard({
     );
   }
 
-  function barIndexFromEvent(event: React.MouseEvent<HTMLDivElement>): number {
+  // Hem mouse hem touch event'lerinden gelen clientX'i, waveform üzerindeki
+  // bir bar index'ine çeviren ortak fonksiyon. Böylece mouse ve touch
+  // handler'ları aynı hesaplama mantığını paylaşır, kopyalanmaz.
+  function barIndexFromClientX(clientX: number): number {
     const rect = waveformRef.current?.getBoundingClientRect();
     if (!rect) return 0;
-    const ratio = Math.min(
-      1,
-      Math.max(0, (event.clientX - rect.left) / rect.width),
-    );
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     return Math.round(ratio * WAVEFORM_BAR_COUNT);
   }
 
-  function handleWaveformMouseDown(event: React.MouseEvent<HTMLDivElement>) {
-    const index = barIndexFromEvent(event);
+  function beginSelectionAt(clientX: number) {
+    const index = barIndexFromClientX(clientX);
     setIsDragging(true);
     setSelection({ start: index, end: index });
   }
 
-  function handleWaveformMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+  function updateSelectionAt(clientX: number) {
     if (!isDragging) return;
-    const index = barIndexFromEvent(event);
+    const index = barIndexFromClientX(clientX);
     setSelection((prev) => (prev ? { start: prev.start, end: index } : null));
+  }
+
+  // ---- Mouse (masaüstü) ----
+  function handleWaveformMouseDown(event: React.MouseEvent<HTMLDivElement>) {
+    beginSelectionAt(event.clientX);
+  }
+
+  function handleWaveformMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    updateSelectionAt(event.clientX);
+  }
+
+  // ---- Touch (dokunmatik ekran) ----
+  // Not: .waveform üzerindeki `touch-action: none` (bkz. CSS) sayesinde
+  // burada preventDefault() çağırmamıza gerek kalmadan sayfa kaymıyor.
+  function handleWaveformTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+    if (!touch) return;
+    beginSelectionAt(touch.clientX);
+  }
+
+  function handleWaveformTouchMove(event: React.TouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+    if (!touch) return;
+    updateSelectionAt(touch.clientX);
   }
 
   function finishDragIfTrivial() {
     setIsDragging(false);
     setSelection((prev) => {
       if (!prev) return null;
-      // Tek noktaya tıklama = seçim yok, sadece o konuma sar.
+      // Tek noktaya tıklama/dokunma = seçim yok, sadece o konuma sar.
       if (Math.abs(prev.end - prev.start) < 1) return null;
       return prev;
     });
@@ -147,6 +173,44 @@ export default function AudioRecordingCard({
   function clearSelection() {
     setSelection(null);
     setLoopEnabled(false);
+  }
+
+  // ---- Klavye ----
+  // Waveform, tabIndex={0} + role="slider" ile klavye odağı alabiliyor.
+  // Bu, mouse/touch'a erişimi olmayan kullanıcıların da zaman çizelgesinde
+  // gezinebilmesini ve oynatmayı kontrol edebilmesini sağlar.
+  function handleWaveformKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    switch (event.key) {
+      case "ArrowRight":
+        event.preventDefault();
+        seekBy(KEYBOARD_SEEK_SECONDS);
+        break;
+      case "ArrowLeft":
+        event.preventDefault();
+        seekBy(-KEYBOARD_SEEK_SECONDS);
+        break;
+      case "Home":
+        event.preventDefault();
+        setElapsed(0);
+        break;
+      case "End":
+        event.preventDefault();
+        setElapsed(record.durationSeconds);
+        break;
+      case " ":
+      case "Enter":
+        event.preventDefault();
+        setIsPlaying((prev) => !prev);
+        break;
+      case "Escape":
+        if (selection) {
+          event.preventDefault();
+          clearSelection();
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   const selectionRange = selection
@@ -175,11 +239,24 @@ export default function AudioRecordingCard({
       <div
         className="waveform"
         ref={waveformRef}
+        tabIndex={0}
+        role="slider"
+        aria-orientation="horizontal"
+        aria-label="Ses kaydı zaman çizelgesi"
+        aria-valuemin={0}
+        aria-valuemax={record.durationSeconds}
+        aria-valuenow={Math.round(elapsed)}
+        aria-valuetext={`${formatTime(elapsed)} / ${formatTime(record.durationSeconds)}`}
         onContextMenu={(event) => event.preventDefault()}
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseUp={finishDragIfTrivial}
         onMouseLeave={() => isDragging && finishDragIfTrivial()}
+        onTouchStart={handleWaveformTouchStart}
+        onTouchMove={handleWaveformTouchMove}
+        onTouchEnd={finishDragIfTrivial}
+        onTouchCancel={finishDragIfTrivial}
+        onKeyDown={handleWaveformKeyDown}
       >
         {waveformBars.map((height, index) => {
           const isPlayed = index <= progressBarIndex;

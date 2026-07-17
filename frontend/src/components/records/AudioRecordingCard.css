@@ -35,6 +35,20 @@
   margin-bottom: 16px;
   border-radius: 8px;
   background: #f9fafb;
+  cursor: crosshair;
+  user-select: none;
+  /* Dokunmatik ekranda sürükleme sırasında sayfanın kaymasını engeller;
+     bu sayede onTouchMove içinde preventDefault() çağırmamıza gerek
+     kalmaz (React'in passive touch listener davranışıyla çakışmaz). */
+  touch-action: none;
+}
+
+/* Klavye ile odaklanıldığında (Tab tuşu) görünür bir gösterge —
+   waveform artık tabIndex={0} + role="slider" ile klavyeden de
+   kullanılabiliyor (bkz. AudioRecordingCard.tsx handleWaveformKeyDown). */
+.waveform:focus-visible {
+  outline: 2px solid #7c5cfc;
+  outline-offset: 2px;
 }
 
 .waveform-bar {
@@ -46,6 +60,14 @@
 
 .waveform-bar.is-played {
   background: #7c5cfc;
+}
+
+.waveform-bar.is-selected {
+  background: #b9a9ff;
+}
+
+.waveform-bar.is-selected.is-played {
+  background: #6d4de6;
 }
 
 .audio-recording-controls {
@@ -121,19 +143,6 @@
   cursor: pointer;
 }
 
-.waveform {
-  cursor: crosshair;
-  user-select: none;
-}
-
-.waveform-bar.is-selected {
-  background: #b9a9ff;
-}
-
-.waveform-bar.is-selected.is-played {
-  background: #6d4de6;
-}
-
 .waveform-selection-bar {
   display: flex;
   align-items: center;
@@ -167,61 +176,13 @@
   background: #f3f4f6;
 }
 
-.playback-controls .icon-button-small:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.audio-recording-header .icon-button-small:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.waveform {
-  cursor: crosshair;
-  user-select: none;
-}
-
-.waveform-bar.is-selected {
-  background: #b9a9ff;
-}
-
-.waveform-bar.is-selected.is-played {
-  background: #6d4de6;
-}
-
-.waveform-selection-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #6b7280;
-  margin: -8px 0 16px;
-}
-
-.selection-loop-toggle,
-.selection-clear {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #6b7280;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.selection-loop-toggle.is-active {
-  background: #7c5cfc;
-  border-color: #7c5cfc;
-  color: #ffffff;
-}
-
-.selection-clear:hover {
-  background: #f3f4f6;
-}
-
+/* Bu iki .icon-button-small:disabled kuralı İNDİRME ile ilgili DEĞİLDİR —
+   indirme butonu bu bileşende hiç var olmadı (bkz. RecordsTable.tsx
+   üzerindeki "indirme yok" notu). Buradaki disabled stil, "Önceki kayıt" /
+   "Sonraki kayıt" gezinme butonları (hasPrevious/hasNext false olduğunda)
+   içindir. Önceden bu kural dosyada yanlışlıkla iki kez (ayrı ayrı ve
+   sonra tekrar birleşik halde) tekrarlanmıştı; tek bir birleşik
+   seçiciye indirildi. */
 .playback-controls .icon-button-small:disabled,
 .audio-recording-header .icon-button-small:disabled {
   opacity: 0.35;
