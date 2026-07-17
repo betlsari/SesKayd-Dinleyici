@@ -10,16 +10,19 @@ import "./RecordsPage.css";
 const PAGE_SIZE = 10;
 
 // Şimdilik sabit (mock) veri üretiyoruz. İlerde bu, .NET API'den
-// GET /api/records?dateFrom=...&callerNumber=... gibi bir çağrıyla gelecek.
+// GET /api/records?companyId=...&dateFrom=...&callerNumber=... gibi bir
+// çağrıyla gelecek.
 //
 // NOT: Dinleme logları burada YOK — onlar artık audit log sisteminden
 // (read-only) ayrıca çekiliyor. Bkz. src/services/auditLogService.ts
 function generateMockRecords(): CallRecord[] {
   const companies = ["Demo A.Ş.", "Örnek Ltd."];
+  // Agent'ın hem görünen adı hem e-postası ayrı ayrı tutuluyor
+  // (doküman: "Agent" ve "Agent E-posta" iki farklı alan).
   const agents = [
-    "ahmet.yilmaz@demo.com",
-    "zeynep.kaya@demo.com",
-    "mehmet.can@demo.com",
+    { name: "Ahmet Yılmaz", email: "ahmet.yilmaz@demo.com" },
+    { name: "Zeynep Kaya", email: "zeynep.kaya@demo.com" },
+    { name: "Mehmet Can", email: "mehmet.can@demo.com" },
   ];
   const usernames = ["mehmet.kaya", "ayse.demir", "can.yildiz"];
 
@@ -27,13 +30,15 @@ function generateMockRecords(): CallRecord[] {
     const day = String(1 + (index % 28)).padStart(2, "0");
     const hour = String(9 + (index % 8)).padStart(2, "0");
     const minute = String((index * 7) % 60).padStart(2, "0");
+    const agent = agents[index % agents.length];
 
     return {
       id: `rec-${index + 1}`,
       dateTime: `${day}.07.2026 ${hour}:${minute}`,
       callerNumber: `0555${String(1000000 + index).slice(0, 7)}`,
       calledNumber: `0212${String(2000000 + index).slice(0, 7)}`,
-      agentEmail: agents[index % agents.length],
+      agentName: agent.name,
+      agentEmail: agent.email,
       username: usernames[index % usernames.length],
       durationSeconds: 60 + ((index * 37) % 600),
       callId: `CALL-${100000 + index}`,
@@ -45,9 +50,6 @@ function generateMockRecords(): CallRecord[] {
 }
 
 const allRecords = generateMockRecords();
-const allCompanies = Array.from(
-  new Set(allRecords.map((record) => record.company)),
-);
 
 // "dd.MM.yyyy HH:mm" formatındaki tarihi sıralanabilir bir sayıya çeviriyoruz.
 function parseDateTime(value: string): number {
@@ -60,14 +62,25 @@ function parseDateTime(value: string): number {
 type ActiveTab = "list" | "detail";
 
 interface RecordsPageProps {
-  // Kullanıcının kayıt dosyalarını indirme yetkisi var mı?
-  // Backend hazır olunca gerçek rol/izin (claims) kontrolüyle değiştirilecek.
-  canDownloadRecordings: boolean;
+  // Topbar'daki şirket seçicisinden gelen o anki aktif şirket.
+  // Kullanıcı SADECE bu şirkete ait kayıtları görebilmeli
+  // (doküman madde 4: "Kullanıcılar yalnızca yetkili oldukları şirket
+  // kayıtlarını görüntüleyebilecektir").
+  //
+  // TODO: .NET entegrasyonu hazır olunca bu değer backend'e
+  // GET /api/records?companyId=... şeklinde query param olarak
+  // gönderilecek; o zaman client-side filtreleme (aşağıdaki
+  // companyScopedRecords) kaldırılacak çünkü backend zaten sadece
+  // o şirketin verisini dönecek. Şu an backend olmadığı için
+  // client tarafında filtreliyoruz.
+  currentCompanyName: string;
 }
 
-export default function RecordsPage({
-  canDownloadRecordings,
-}: RecordsPageProps) {
+// NOT: Bu sayfada ve alt bileşenlerinde (RecordsTable, RecordDetailPanel,
+// AudioRecordingCard) KASITLI olarak bir "canDownloadRecordings" / indirme
+// kavramı YOK. Ses kayıtları hiçbir kullanıcı rolü için indirilemez —
+// bkz. AudioRecordingCard.tsx başındaki backend güvenlik notları.
+export default function RecordsPage({ currentCompanyName }: RecordsPageProps) {
   const [filters, setFilters] = useState<RecordFilters | null>(null);
   const [page, setPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(
@@ -77,10 +90,18 @@ export default function RecordsPage({
   const [selectedRecord, setSelectedRecord] = useState<CallRecord | null>(null);
   const [autoPlayDetail, setAutoPlayDetail] = useState(false);
 
-  const filteredRecords = useMemo(() => {
-    if (!filters) return allRecords;
+  // GÜVENLİK: Kullanıcının seçtiği şirket ne olursa olsun, aşağıdaki
+  // adımların HİÇBİRİ bu scope'un dışına çıkamaz. Filtre formu ve
+  // sıralama, sadece bu diziye uygulanır; tüm allRecords'a değil.
+  const companyScopedRecords = useMemo(
+    () => allRecords.filter((record) => record.company === currentCompanyName),
+    [currentCompanyName],
+  );
 
-    return allRecords.filter((record) => {
+  const filteredRecords = useMemo(() => {
+    if (!filters) return companyScopedRecords;
+
+    return companyScopedRecords.filter((record) => {
       if (
         filters.callerNumber &&
         !record.callerNumber.includes(filters.callerNumber)
@@ -95,7 +116,7 @@ export default function RecordsPage({
       }
       if (
         filters.agent &&
-        !record.agentEmail.toLowerCase().includes(filters.agent.toLowerCase())
+        !record.agentName.toLowerCase().includes(filters.agent.toLowerCase())
       ) {
         return false;
       }
@@ -111,12 +132,9 @@ export default function RecordsPage({
       ) {
         return false;
       }
-      if (filters.company && record.company !== filters.company) {
-        return false;
-      }
       return true;
     });
-  }, [filters]);
+  }, [companyScopedRecords, filters]);
 
   const sortedRecords = useMemo(() => {
     if (!sortDirection) return filteredRecords;
@@ -185,14 +203,10 @@ export default function RecordsPage({
     setAutoPlayDetail(true);
   }
 
-  function handleDownload(record: CallRecord) {
-    if (!canDownloadRecordings) return;
-    // TODO: .NET API'den kayıt dosyasını indirme (örn. GET /api/records/{id}/download)
-    console.log("İndirilecek kayıt:", record.id);
-  }
-
   function handleDelete(record: CallRecord) {
     // TODO: .NET API'ye silme isteği (örn. DELETE /api/records/{id})
+    // TODO: Bu aksiyon şu an rol kontrolü olmadan herkese açık — ayrı
+    // bir "canDelete" yetkisi ile kısıtlanması gerekiyor.
     console.log("Silinecek kayıt:", record.id);
   }
 
@@ -200,7 +214,9 @@ export default function RecordsPage({
     <div className="records-page">
       <div className="records-page-header">
         <h1>Ses Kayıtları</h1>
-        <p>Kayıtları listeleyin ve dinleyin.</p>
+        <p>
+          {currentCompanyName} şirketine ait kayıtları listeleyin ve dinleyin.
+        </p>
       </div>
 
       <div className="records-tabs" role="tablist">
@@ -242,7 +258,7 @@ export default function RecordsPage({
 
       {activeTab === "list" ? (
         <>
-          <RecordsFilterForm companies={allCompanies} onSearch={handleSearch} />
+          <RecordsFilterForm onSearch={handleSearch} />
 
           <RecordsTable
             records={pageRecords}
@@ -251,9 +267,7 @@ export default function RecordsPage({
             onSortToggle={handleSortToggle}
             onPlay={handlePlay}
             onOpenDetail={handleOpenDetail}
-            onDownload={handleDownload}
             onDelete={handleDelete}
-            canDownload={canDownloadRecordings}
           />
 
           <Pagination
@@ -268,7 +282,6 @@ export default function RecordsPage({
             key={selectedRecord.id}
             record={selectedRecord}
             autoPlay={autoPlayDetail}
-            canDownload={canDownloadRecordings}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
             onPrevious={handlePreviousRecord}

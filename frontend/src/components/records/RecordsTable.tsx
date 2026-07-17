@@ -6,7 +6,6 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Download,
   Trash2,
 } from "lucide-react";
 import type { CallRecord } from "../../types/record";
@@ -19,11 +18,7 @@ interface RecordsTableProps {
   onSortToggle: () => void;
   onPlay: (record: CallRecord) => void;
   onOpenDetail: (record: CallRecord) => void;
-  onDownload?: (record: CallRecord) => void;
   onDelete?: (record: CallRecord) => void;
-  // Kullanıcının kayıt dosyalarını indirme yetkisi var mı?
-  // Backend hazır olunca gerçek rol/izin (claims) kontrolüyle değiştirilecek.
-  canDownload?: boolean;
 }
 
 // Saniyeyi "04:32" gibi mm:ss formatına çeviriyoruz.
@@ -33,6 +28,10 @@ function formatDuration(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+// NOT: Bu tabloda ve satır menüsünde KASITLI olarak bir "İndir" aksiyonu
+// YOK. Ses kayıtları hiçbir kullanıcı rolü için indirilebilir değildir
+// (bkz. AudioRecordingCard.tsx başındaki backend güvenlik notları).
+// Buraya tekrar bir indirme butonu/menü öğesi eklenmemeli.
 export default function RecordsTable({
   records,
   totalCount,
@@ -40,9 +39,7 @@ export default function RecordsTable({
   onSortToggle,
   onPlay,
   onOpenDetail,
-  onDownload = () => {},
   onDelete = () => {},
-  canDownload = true,
 }: RecordsTableProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -123,7 +120,7 @@ export default function RecordsTable({
               <td>{record.dateTime}</td>
               <td>{record.callerNumber}</td>
               <td>{record.calledNumber}</td>
-              <td>{record.agentEmail}</td>
+              <td>{record.agentName}</td>
               <td>{record.username}</td>
               <td>{formatDuration(record.durationSeconds)}</td>
               <td>{record.callId}</td>
@@ -159,24 +156,6 @@ export default function RecordsTable({
 
                     {openMenuId === record.id && (
                       <ul className="row-menu-dropdown" role="menu">
-                        <li role="none">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            disabled={!canDownload}
-                            title={
-                              canDownload ? undefined : "İndirme yetkiniz yok"
-                            }
-                            onClick={() => {
-                              if (!canDownload) return;
-                              onDownload(record);
-                              setOpenMenuId(null);
-                            }}
-                          >
-                            <Download size={14} />
-                            İndir
-                          </button>
-                        </li>
                         <li role="none">
                           <button
                             type="button"

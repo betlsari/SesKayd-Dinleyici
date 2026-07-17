@@ -6,8 +6,6 @@ import "./RecordDetailPanel.css";
 interface RecordDetailPanelProps {
   record: CallRecord;
   autoPlay: boolean;
-  // Kullanıcının kayıt dosyalarını indirme yetkisi var mı?
-  canDownload: boolean;
   // Kayıt Detayları içindeki "önceki/sonraki kayıt" gezinmesi.
   hasPrevious: boolean;
   hasNext: boolean;
@@ -15,10 +13,12 @@ interface RecordDetailPanelProps {
   onNext: () => void;
 }
 
+// NOT: Burada KASITLI olarak bir canDownload prop'u YOK. İndirme, rol
+// bazlı bile olsa artık hiçbir şekilde desteklenmiyor (bkz.
+// AudioRecordingCard.tsx başındaki backend güvenlik notları).
 export default function RecordDetailPanel({
   record,
   autoPlay,
-  canDownload,
   hasPrevious,
   hasNext,
   onPrevious,
@@ -37,7 +37,6 @@ export default function RecordDetailPanel({
         key={record.id}
         record={record}
         autoPlay={autoPlay}
-        canDownload={canDownload}
         hasPrevious={hasPrevious}
         hasNext={hasNext}
         onPrevious={onPrevious}

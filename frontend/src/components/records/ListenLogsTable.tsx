@@ -11,8 +11,6 @@ interface ListenLogsTableProps {
 type SortDirection = "asc" | "desc";
 type LoadStatus = "loading" | "ready" | "error";
 
-// "dd.MM.yyyy HH:mm:ss" formatındaki audit log tarihini sıralanabilir
-// bir sayıya çeviriyoruz (saniye kısmı opsiyonel).
 function parseLogDateTime(value: string): number {
   const [datePart, timePart = "00:00:00"] = value.split(" ");
   const [day, month, year] = datePart.split(".").map(Number);
@@ -20,16 +18,6 @@ function parseLogDateTime(value: string): number {
   return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
 }
 
-// Bu bileşen kasıtlı olarak READ-ONLY'dir: dinleme logları audit log
-// sisteminden gelir, burada düzenleme/silme aksiyonu yoktur ve olmamalıdır.
-//
-// NOT: Bu bileşen AudioRecordingCard içinde render ediliyor ve
-// AudioRecordingCard, RecordDetailPanel'de `key={record.id}` ile
-// mount ediliyor. Yani kayıt değişince (önceki/sonraki geçişinde)
-// bu bileşen de sıfırdan mount olur; bu yüzden effect içinde ayrıca
-// "loading" state'ine dönmeye gerek yok, useState'in başlangıç değeri
-// zaten "loading"dir (react-hooks/set-state-in-effect kuralına takılmamak
-// için tercih edilen yaklaşım budur).
 export default function ListenLogsTable({ recordId }: ListenLogsTableProps) {
   const [logs, setLogs] = useState<ListenLog[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");

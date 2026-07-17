@@ -7,7 +7,6 @@ import {
   RotateCcw,
   RotateCw,
   Volume2,
-  Download,
   ChevronLeft,
   ChevronRight,
   Repeat,
@@ -15,33 +14,22 @@ import {
 } from "lucide-react";
 import type { CallRecord } from "../../types/record";
 import ListenLogsTable from "./ListenLogsTable";
+import { reportListenEvent } from "../../services/auditLogService";
 import "./AudioRecordingCard.css";
 
 interface AudioRecordingCardProps {
   record: CallRecord;
   autoPlay: boolean;
-  canDownload: boolean;
   hasPrevious: boolean;
   hasNext: boolean;
   onPrevious: () => void;
   onNext: () => void;
 }
 
-// Saniyeyi "04:32" gibi mm:ss formatına çeviriyoruz.
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-// Backend'in üreteceği dosya adlandırma kuralını mock'luyoruz.
-function buildFileName(record: CallRecord): string {
-  const [datePart, timePart] = record.dateTime.split(" ");
-  const [day, month, year] = datePart.split(".");
-  const compactDate = `${year}${month}${day}`;
-  const compactTime = timePart.replace(":", "") + "00";
-  const shortCallId = record.callId.replace("CALL-", "");
-  return `recording_${record.callerNumber}_${record.calledNumber}_${record.agentEmail}_${record.username}_${compactDate}_${compactTime}_${shortCallId}.${record.format.toLowerCase()}`;
 }
 
 // Dalga formu görünümü için sabit (deterministik) ama rastgele görünen çubuklar
@@ -58,14 +46,9 @@ function buildWaveformBars(count: number): number[] {
 
 const WAVEFORM_BAR_COUNT = 90;
 
-// NOT: Bu bileşen, RecordDetailPanel içinde `key={record.id}` ile render
-// ediliyor. Böylece "önceki/sonraki kayıt" geçişinde bileşen tamamen yeniden
-// mount olur ve tüm state'ler (elapsed, isPlaying, selection...) otomatik
-// olarak sıfırlanır — bunu bir useEffect içinde elle yapmaya gerek kalmaz.
 export default function AudioRecordingCard({
   record,
   autoPlay,
-  canDownload,
   hasPrevious,
   hasNext,
   onPrevious,
@@ -85,10 +68,15 @@ export default function AudioRecordingCard({
   const waveformRef = useRef<HTMLDivElement>(null);
   const waveformBars = useMemo(() => buildWaveformBars(WAVEFORM_BAR_COUNT), []);
 
-  // Oynatım simülasyonu: gerçek <audio> elementi bağlanana kadar saniyeyi
-  // elle ilerletiyoruz. TODO: backend hazır olunca <audio> + timeupdate'e geçilecek.
+  const hasReportedListenRef = useRef(false);
+
   useEffect(() => {
     if (isPlaying) {
+      if (!hasReportedListenRef.current) {
+        hasReportedListenRef.current = true;
+        reportListenEvent(record.id, "Dinleme");
+      }
+
       intervalRef.current = setInterval(() => {
         setElapsed((prev) => {
           const loopStartSec = selection
@@ -116,18 +104,12 @@ export default function AudioRecordingCard({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isPlaying, record.durationSeconds, selection, loopEnabled]);
+  }, [isPlaying, record.id, record.durationSeconds, selection, loopEnabled]);
 
   function seekBy(deltaSeconds: number) {
     setElapsed((prev) =>
       Math.min(record.durationSeconds, Math.max(0, prev + deltaSeconds)),
     );
-  }
-
-  function handleDownload() {
-    if (!canDownload) return;
-    // TODO: .NET API'den kayıt dosyasını indirme (örn. GET /api/records/{id}/download)
-    console.log("İndirilecek kayıt:", record.id);
   }
 
   function barIndexFromEvent(event: React.MouseEvent<HTMLDivElement>): number {
@@ -188,23 +170,12 @@ export default function AudioRecordingCard({
     <div className="audio-recording-card">
       <div className="audio-recording-header">
         <h2>Ses Kaydı</h2>
-        <button
-          type="button"
-          className="icon-button-small"
-          aria-label="Kaydı indir"
-          disabled={!canDownload}
-          title={canDownload ? "Kaydı indir" : "İndirme yetkiniz yok"}
-          onClick={handleDownload}
-        >
-          <Download size={16} />
-        </button>
       </div>
-
-      <p className="audio-recording-filename">{buildFileName(record)}</p>
 
       <div
         className="waveform"
         ref={waveformRef}
+        onContextMenu={(event) => event.preventDefault()}
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseUp={finishDragIfTrivial}
@@ -341,10 +312,7 @@ export default function AudioRecordingCard({
         </div>
       </div>
 
-      {/*
-        Dinleme logları artık kaydın kendi verisi değil; audit log
-        sisteminden read-only olarak ayrı çekiliyor (bkz. auditLogService.ts).
-      */}
+      {}
       <ListenLogsTable recordId={record.id} />
     </div>
   );

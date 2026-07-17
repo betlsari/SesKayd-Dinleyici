@@ -5,8 +5,6 @@ import type { Company } from "./components/layout/Topbar";
 import type { CurrentUser } from "./components/layout/Sidebar";
 import RecordsPage from "./pages/RecordsPage";
 
-// Bu veriler ŞİMDİLİK sabit (mock). İlerde .NET API'den
-// (örn. GET /api/companies, GET /api/notifications) gelecek.
 const mockCompanies: Company[] = [
   { id: 1, name: "Demo A.Ş." },
   { id: 2, name: "Örnek Ltd." },
@@ -18,7 +16,6 @@ const mockUser: CurrentUser = {
   online: true,
 };
 
-const canDownloadRecordings = mockUser.role === "Yönetici";
 export default function App() {
   const [currentCompany, setCurrentCompany] = useState<Company>(
     mockCompanies[0],
@@ -37,7 +34,10 @@ export default function App() {
           <Route
             path="/kayitlar"
             element={
-              <RecordsPage canDownloadRecordings={canDownloadRecordings} />
+              <RecordsPage
+                key={currentCompany.id}
+                currentCompanyName={currentCompany.name}
+              />
             }
           />
           <Route path="/arama-kayitlari" element={<div>Arama kayıtları</div>} />

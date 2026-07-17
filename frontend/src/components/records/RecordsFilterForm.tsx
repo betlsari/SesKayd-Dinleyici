@@ -4,7 +4,6 @@ import type { RecordFilters } from "../../types/record";
 import "./RecordsFilterForm.css";
 
 interface RecordsFilterFormProps {
-  companies: string[];
   onSearch: (filters: RecordFilters) => void;
 }
 
@@ -16,17 +15,13 @@ const emptyFilters: RecordFilters = {
   agent: "",
   username: "",
   callId: "",
-  company: "",
 };
 
 export default function RecordsFilterForm({
-  companies,
   onSearch,
 }: RecordsFilterFormProps) {
   const [filters, setFilters] = useState<RecordFilters>(emptyFilters);
 
-  // Tek bir alanı güncellemek için genel bir yardımcı fonksiyon.
-  // K, RecordFilters'ın anahtarlarından biri olmak zorunda (TypeScript bunu kontrol eder).
   function updateField<K extends keyof RecordFilters>(
     field: K,
     value: RecordFilters[K],
@@ -105,7 +100,7 @@ export default function RecordsFilterForm({
           <input
             id="agent"
             type="text"
-            placeholder="Agent e-posta"
+            placeholder="Agent adı"
             value={filters.agent}
             onChange={(e) => updateField("agent", e.target.value)}
           />
@@ -131,22 +126,6 @@ export default function RecordsFilterForm({
             value={filters.username}
             onChange={(e) => updateField("username", e.target.value)}
           />
-        </div>
-
-        <div className="filter-field">
-          <label htmlFor="company">Şirket</label>
-          <select
-            id="company"
-            value={filters.company}
-            onChange={(e) => updateField("company", e.target.value)}
-          >
-            <option value="">Tümü</option>
-            {companies.map((company) => (
-              <option key={company} value={company}>
-                {company}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 

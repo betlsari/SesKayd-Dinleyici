@@ -7,8 +7,6 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-// Çok fazla sayfa varsa hepsini göstermek yerine
-// 1 ... 4 5 6 ... 12 gibi kısaltılmış bir liste üretiyoruz.
 function getPageNumbers(
   current: number,
   total: number,

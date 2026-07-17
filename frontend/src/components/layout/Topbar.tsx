@@ -32,7 +32,6 @@ export default function Topbar({
   const companyRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Dropdown'lardan biri açıkken sayfanın başka bir yerine tıklanırsa kapanmasını sağlıyoruz.
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (

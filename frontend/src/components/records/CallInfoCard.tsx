@@ -5,7 +5,6 @@ interface CallInfoCardProps {
   record: CallRecord;
 }
 
-// Saniyeyi "04:32" gibi mm:ss formatına çeviriyoruz.
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -21,12 +20,12 @@ export default function CallInfoCard({ record }: CallInfoCardProps) {
 
       <div className="call-info-grid">
         <div className="detail-field">
-          <span className="detail-label">Arayan Numara</span>
-          <span className="detail-value">{record.callerNumber}</span>
+          <span className="detail-label">Şirket</span>
+          <span className="detail-value">{record.company}</span>
         </div>
         <div className="detail-field">
-          <span className="detail-label">Tarih / Saat</span>
-          <span className="detail-value">{record.dateTime}</span>
+          <span className="detail-label">Arayan Numara</span>
+          <span className="detail-value">{record.callerNumber}</span>
         </div>
 
         <div className="detail-field">
@@ -34,28 +33,17 @@ export default function CallInfoCard({ record }: CallInfoCardProps) {
           <span className="detail-value">{record.calledNumber}</span>
         </div>
         <div className="detail-field">
-          <span className="detail-label">Süre</span>
-          <span className="detail-value">
-            {formatDuration(record.durationSeconds)}
-          </span>
+          <span className="detail-label">Agent</span>
+          <span className="detail-value">{record.agentName}</span>
         </div>
 
         <div className="detail-field">
-          <span className="detail-label">Agent (E-posta)</span>
+          <span className="detail-label">Agent E-posta</span>
           <span className="detail-value">{record.agentEmail}</span>
         </div>
         <div className="detail-field">
-          <span className="detail-label">Dosya Boyutu</span>
-          <span className="detail-value">{record.fileSizeKB} KB</span>
-        </div>
-
-        <div className="detail-field">
           <span className="detail-label">Kullanıcı Adı</span>
           <span className="detail-value">{record.username}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Format</span>
-          <span className="detail-value">{record.format}</span>
         </div>
 
         <div className="detail-field">
@@ -63,8 +51,24 @@ export default function CallInfoCard({ record }: CallInfoCardProps) {
           <span className="detail-value">{record.callId}</span>
         </div>
         <div className="detail-field">
-          <span className="detail-label">Şirket</span>
-          <span className="detail-value">{record.company}</span>
+          <span className="detail-label">Tarih / Saat</span>
+          <span className="detail-value">{record.dateTime}</span>
+        </div>
+
+        <div className="detail-field">
+          <span className="detail-label">Süre</span>
+          <span className="detail-value">
+            {formatDuration(record.durationSeconds)}
+          </span>
+        </div>
+        <div className="detail-field">
+          <span className="detail-label">Dosya Boyutu</span>
+          <span className="detail-value">{record.fileSizeKB} KB</span>
+        </div>
+
+        <div className="detail-field">
+          <span className="detail-label">Format</span>
+          <span className="detail-value">{record.format}</span>
         </div>
       </div>
     </div>
