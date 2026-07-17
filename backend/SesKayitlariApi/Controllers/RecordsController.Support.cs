@@ -125,6 +125,26 @@ public interface ICompanyAccessService
     Task<IReadOnlyList<CompanyDto>> GetAccessibleCompaniesAsync(
         string userId,
         CancellationToken cancellationToken);
+         Task<IReadOnlyList<CompanyDto>> GetAllCompaniesAsync(
+        CancellationToken cancellationToken);
+
+    Task<CompanyDto> CreateCompanyAsync(
+        string name, CancellationToken cancellationToken);
+
+    Task<CompanyDto?> UpdateCompanyAsync(
+        int companyId, string name, CancellationToken cancellationToken);
+
+    Task<bool> DeleteCompanyAsync(
+        int companyId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<UserCompanyAssignmentDto>> GetCompanyAssignmentsAsync(
+        int companyId, CancellationToken cancellationToken);
+
+    Task<UserCompanyAssignmentDto?> AssignUserAsync(
+        int companyId, string userId, CancellationToken cancellationToken);
+
+    Task<bool> UnassignUserAsync(
+        int companyId, string userId, CancellationToken cancellationToken);
 }
 
 // frontend/src/components/layout/Topbar.tsx -> Company ile birebir eşleşir.

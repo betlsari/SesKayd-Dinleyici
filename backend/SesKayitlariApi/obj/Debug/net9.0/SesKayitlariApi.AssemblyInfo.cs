@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SesKayitlariApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+97cfccdf00b08d76187d50ef843a58880478a865")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9d43bd6c6f5d2a30829adedeb05084cee9cd26fc")]
 [assembly: System.Reflection.AssemblyProductAttribute("SesKayitlariApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SesKayitlariApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
