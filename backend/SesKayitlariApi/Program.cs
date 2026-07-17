@@ -1,8 +1,33 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SesKayitlariApi.Auth;
+using SesKayitlariApi.Controllers;
+using SesKayitlariApi.Data;
+using SesKayitlariApi.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---------------------------------------------------------------------
+// Veritabanı (EF Core)
+// ---------------------------------------------------------------------
+// SQL Server varsayıldı. Farklı bir veritabanı kullanılacaksa (ör.
+// PostgreSQL) sadece bu iki satır + ilgili NuGet paketi değişir,
+// Companies/RecordsRepository kodunun HİÇBİRİ değişmez (Npgsql.EntityFrameworkCore.PostgreSQL
+// + options.UseNpgsql(connectionString)).
+var connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException(
+        "appsettings.json içinde ConnectionStrings:Default tanımlı değil.");
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// Controllers/RecordsController.Support.cs içinde tanımlı sözleşmelerin
+// EF Core implementasyonları (Services/ klasörü).
+builder.Services.AddScoped<ICompanyAccessService, CompanyAccessService>();
+builder.Services.AddScoped<IRecordsRepository, RecordsRepository>();
 
 // ---------------------------------------------------------------------
 // Keycloak yapılandırması (appsettings.json -> "Keycloak" bölümü)
@@ -11,6 +36,10 @@ var builder = WebApplication.CreateBuilder(args);
 // değerleri frontend/.env'deki VITE_KEYCLOAK_* değerleriyle (ClientId
 // hariç, o API için ayrı olabilir) AYNI Keycloak sunucusunu/realm'ini
 // göstermeli — aksi halde frontend'de alınan token burada reddedilir.
+//
+// NOT: KeycloakOptions içinde bir "Authority" HESAPLANMIŞ property'si
+// olmalı, örn: Authority => $"{Url?.TrimEnd('/')}/realms/{Realm}"
+// Aşağıdaki kod bunun var olduğunu varsayıyor.
 builder.Services
     .AddOptions<KeycloakOptions>()
     .Bind(builder.Configuration.GetSection(KeycloakOptions.SectionName))
@@ -18,10 +47,11 @@ builder.Services
 
 // Middleware kurulumu sırasında (henüz DI container hazır değilken)
 // KeycloakOptions'a ihtiyacımız var; bu yüzden configuration'dan
-// doğrudan da okuyoruz (yukarıdaki Options kaydı, controller'lar
-// içinde IOptions<KeycloakOptions> enjekte etmek isteyenler için).
-var keycloakSection = builder.Configuration.GetSection(KeycloakOptions.SectionName);
-var keycloakOptions = keycloakSection.Get<KeycloakOptions>()
+// doğrudan da okuyoruz (yukarıdaki Options kaydı, controller'lar içinde
+// IOptions<KeycloakOptions> enjekte etmek isteyenler içindir).
+var keycloakOptions = builder.Configuration
+    .GetSection(KeycloakOptions.SectionName)
+    .Get<KeycloakOptions>()
     ?? throw new InvalidOperationException(
         "appsettings.json içinde \"Keycloak\" bölümü bulunamadı. " +
         "Url, Realm ve ClientId alanlarını doldurduğundan emin ol.");
@@ -41,7 +71,7 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 // ---------------------------------------------------------------------
 // Authority, Keycloak'ın bu realm için OIDC discovery/JWKS uç noktasını
 // otomatik bulmasını sağlar; token imzası buradan doğrulanır. ASP.NET
-// Core, imzayı KENDİ doğrular — Keycloak'a her istekte tekrar sormaz
+// Core imzayı KENDİ doğrular — Keycloak'a her istekte tekrar sormaz
 // (JWKS anahtarları cache'lenir).
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -52,11 +82,11 @@ builder.Services
         // Audience doğrulaması: Keycloak token'ının "aud" claim'inde bu
         // API'nin client id'sinin bulunmasını zorunlu kılar. Eğer bu API
         // için Keycloak'ta ayrı bir client TANIMLANMADIYSA (yani SPA
-        // client'ı "vcard-fe" kullanılıyorsa) bu satır token'ı
-        // REDDEDEBİLİR — o durumda ValidateAudience = false yapıp bunun
-        // yerine sadece issuer doğrulamasına güvenmen gerekebilir. Bu
-        // netleşene kadar bilinçli bırakıldı (bkz. Adım 1 notu: "Bu API
-        // için Keycloak'ta ayrı bir client oluşturulmuş mu?").
+        // client'ı kullanılıyorsa) bu satır token'ı REDDEDEBİLİR — o
+        // durumda ValidateAudience = false yapıp sadece issuer
+        // doğrulamasına güvenmen gerekebilir. Bu netleşene kadar
+        // bilinçli bırakıldı (bkz. Adım 1 notu: "Bu API için Keycloak'ta
+        // ayrı bir client oluşturulmuş mu?").
         options.Audience = keycloakOptions.ClientId;
 
         // Keycloak test/dev sunucusu geçerli bir HTTPS sertifikasına
@@ -92,7 +122,20 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+// Keycloak realm rolleri "realm_access.roles" claim'i içinde gelir;
+// standart .NET RoleClaimType bunu otomatik okumaz. Bu transformer,
+// token içindeki realm rollerini uygulamanın bildiği rollere (frontend
+// roleMapping.ts ile BİREBİR aynı eşleme) çevirip ClaimTypes.Role olarak
+// ekler — böylece [Authorize(Roles="Yönetici")] ve RequireRole çalışır.
+builder.Services.AddSingleton<IClaimsTransformation, KeycloakRoleClaimsTransformer>();
+
+builder.Services.AddAuthorization(options =>
+{
+    // Frontend'deki RESTRICTED_PATH_ROLES tablosunun backend karşılığı.
+    // İsimler auth/permissions.ts ile BİREBİR aynı tutulmalı.
+    options.AddPolicy("Yonetici", p => p.RequireRole("Yönetici"));
+    options.AddPolicy("YoneticiVeSupervisor", p => p.RequireRole("Yönetici", "Supervisor"));
+});
 
 // ---------------------------------------------------------------------
 // CORS — frontend'in (Vite dev server, varsayılan localhost:5173) bu
@@ -112,10 +155,45 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Ses Kayitlari API", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT access token. Example: 'Bearer {token}'"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
 app.UseCors();
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Ses Kayitlari API v1");
+    c.EnablePersistAuthorization();
+});
 
 // SIRALAMA ÖNEMLİ: UseAuthentication her zaman UseAuthorization'dan
 // ÖNCE gelmeli, aksi halde [Authorize] attribute'ları düzgün çalışmaz.
