@@ -53,9 +53,6 @@
   min-width: 0;
 }
 
-/* dateFrom > dateTo gibi geçersiz bir aralık girildiğinde inputları
-   ve yardımcı mesajı vurgulamak için (bkz. RecordsFilterForm.tsx
-   dateRangeError / showDateRangeError). */
 .date-range-inputs.has-error input {
   border-color: #ef4444;
 }

@@ -10,6 +10,9 @@ interface LayoutProps {
   companies?: Company[];
   notificationCount?: number;
   onCompanyChange?: (company: Company) => void;
+  // Topbar kullanıcı menüsündeki "Çıkış Yap" için — gerçek Keycloak
+  // logout'una (bkz. src/auth/AuthProvider.tsx) bağlanır.
+  onLogout?: () => void;
 }
 
 export default function Layout({
@@ -19,6 +22,7 @@ export default function Layout({
   companies,
   notificationCount,
   onCompanyChange,
+  onLogout,
 }: LayoutProps) {
   return (
     <div className="app-layout">
@@ -30,6 +34,7 @@ export default function Layout({
           companies={companies}
           notificationCount={notificationCount}
           onCompanyChange={onCompanyChange}
+          onLogout={onLogout}
         />
         <main className="app-content">{children}</main>
       </div>

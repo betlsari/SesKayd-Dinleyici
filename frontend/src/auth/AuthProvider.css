@@ -1,0 +1,61 @@
+.auth-status-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100vh;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #374151;
+  padding: 24px;
+  text-align: center;
+}
+
+.auth-status-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid #e5e7eb;
+  border-top-color: #7c5cfc;
+  animation: auth-status-spin 0.8s linear infinite;
+}
+
+@keyframes auth-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-status-title {
+  font-weight: 600;
+  color: #ef4444;
+  margin: 0;
+}
+
+.auth-status-desc {
+  font-size: 14px;
+  max-width: 380px;
+  margin: 0;
+  color: #6b7280;
+}
+
+.auth-status-desc code {
+  background: #f4f3ec;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.auth-status-retry {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.auth-status-retry:hover {
+  background: #f3f4f6;
+}

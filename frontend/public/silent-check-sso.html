@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      // Keycloak JS adaptörünün "silentCheckSsoRedirectUri" seçeneği bu
+      // dosyayı bir iframe içinde yükler; amaç, kullanıcı zaten Keycloak'ta
+      // oturum açmışsa sayfayı tam yönlendirmeden (redirect) sessizce
+      // login durumunu tespit edebilmektir. İçerik değiştirilmemelidir.
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>

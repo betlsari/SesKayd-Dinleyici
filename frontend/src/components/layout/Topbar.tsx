@@ -19,6 +19,11 @@ interface TopbarProps {
   companies?: Company[];
   notificationCount?: number;
   onCompanyChange?: (company: Company) => void;
+  // Kullanıcı menüsündeki "Çıkış Yap" tıklandığında çağrılır — gerçek
+  // Keycloak logout'una App.tsx üzerinden bağlanır (bkz. AuthProvider.tsx
+  // logout()). Prop verilmezse no-op'tur, bu yüzden Topbar'ı bu prop
+  // olmadan kullanan/test eden yerler kırılmaz.
+  onLogout?: () => void;
 }
 
 export default function Topbar({
@@ -26,6 +31,7 @@ export default function Topbar({
   companies = [],
   notificationCount = 0,
   onCompanyChange = () => {},
+  onLogout = () => {},
 }: TopbarProps) {
   const [companyOpen, setCompanyOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -249,7 +255,14 @@ export default function Topbar({
                     userMenuItemRefs.current[2] = el;
                   }}
                   className="user-menu-logout"
-                  onClick={closeUserMenu}
+                  onClick={() => {
+                    // Önce menüyü/odağı kapatıyoruz; logout() genelde
+                    // Keycloak'a tam sayfa yönlendirme yapacağı için sıra
+                    // pratikte önemli değil, ama tutarlılık için önce UI
+                    // temizliği yapıyoruz.
+                    closeUserMenu();
+                    onLogout();
+                  }}
                 >
                   <LogOut size={15} />
                   Çıkış Yap

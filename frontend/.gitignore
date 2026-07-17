@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Keycloak ortam değişkenleri (.env.example takip edilir, .env edilmez)
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

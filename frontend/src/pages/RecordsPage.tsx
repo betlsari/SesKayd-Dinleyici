@@ -6,6 +6,7 @@ import Pagination from "../components/records/Pagination";
 import RecordDetailPanel from "../components/records/RecordDetailPanel";
 import { canDeleteRecords } from "../auth/permissions";
 import type { CallRecord, RecordFilters } from "../types/record";
+import type { Company } from "../components/layout/Topbar";
 import "./RecordsPage.css";
 
 const PAGE_SIZE = 10;
@@ -77,9 +78,18 @@ interface RecordsPageProps {
   currentCompanyName: string;
   // Silme yetkisi kontrolü için oturum açmış kullanıcının rolü.
   // Bkz. src/auth/permissions.ts -> canDeleteRecords.
-  // TODO: .NET + Keycloak entegrasyonu sonrası bu değer gerçek
-  // JWT/claim'den gelecek; bu prop'un imzası aynı kalacak.
+  // Artık gerçek Keycloak token'ından (bkz. src/auth/AuthProvider.tsx +
+  // src/auth/roleMapping.ts) geliyor; bu prop'un imzası aynı kaldı.
   currentUserRole: string;
+  // ---------------------------------------------------------------
+  // Aşağıdaki üçü, filtre panelindeki "Şirket" alanının (doküman
+  // gereksinimi) Topbar'daki şirket seçiciyle AYNI state'i paylaşmasını
+  // sağlamak için eklendi. Tek "doğru kaynak" (source of truth) App.tsx
+  // içindeki currentCompany state'idir — burada sadece iletiliyor.
+  // ---------------------------------------------------------------
+  companies: Company[];
+  currentCompany: Company;
+  onCompanyChange: (company: Company) => void;
 }
 
 // NOT: Bu sayfada ve alt bileşenlerinde (RecordsTable, RecordDetailPanel,
@@ -89,6 +99,9 @@ interface RecordsPageProps {
 export default function RecordsPage({
   currentCompanyName,
   currentUserRole,
+  companies,
+  currentCompany,
+  onCompanyChange,
 }: RecordsPageProps) {
   const [filters, setFilters] = useState<RecordFilters | null>(null);
   const [page, setPage] = useState(1);
@@ -283,7 +296,12 @@ export default function RecordsPage({
 
       {activeTab === "list" ? (
         <>
-          <RecordsFilterForm onSearch={handleSearch} />
+          <RecordsFilterForm
+            onSearch={handleSearch}
+            companies={companies}
+            currentCompany={currentCompany}
+            onCompanyChange={onCompanyChange}
+          />
 
           <RecordsTable
             records={pageRecords}
