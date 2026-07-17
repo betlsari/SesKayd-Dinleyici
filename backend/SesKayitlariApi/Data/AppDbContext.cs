@@ -7,7 +7,7 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
-
+public DbSet<ListenLogEntity> ListenLogs => Set<ListenLogEntity>();
     public DbSet<CompanyEntity> Companies => Set<CompanyEntity>();
     public DbSet<CallRecordEntity> CallRecords => Set<CallRecordEntity>();
     public DbSet<UserCompanyAssignmentEntity> UserCompanyAssignments => Set<UserCompanyAssignmentEntity>();
@@ -70,6 +70,26 @@ public class AppDbContext : DbContext
                 // seçildi — kayıtları korumak, atamaları korumaktan
                 // daha kritik).
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ListenLogEntity>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.Property(l => l.CallRecordId).IsRequired().HasMaxLength(64);
+            entity.Property(l => l.UserId).IsRequired().HasMaxLength(64);
+            entity.Property(l => l.UserDisplayName).IsRequired().HasMaxLength(200);
+            entity.Property(l => l.Role).IsRequired().HasMaxLength(50);
+            entity.Property(l => l.Action).IsRequired().HasMaxLength(20);
+            entity.Property(l => l.IpAddress).IsRequired().HasMaxLength(45);
+
+            entity
+                .HasOne(l => l.CallRecord)
+                .WithMany()
+                .HasForeignKey(l => l.CallRecordId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(l => l.CallRecordId);
+            entity.HasIndex(l => new { l.CallRecordId, l.DateTime });
         });
     }
 }

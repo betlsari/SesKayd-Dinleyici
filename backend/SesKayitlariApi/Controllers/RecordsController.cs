@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SesKayitlariApi.Storage;
@@ -13,17 +14,20 @@ public class RecordsController : ControllerBase
     private readonly IRecordsRepository _recordsRepository;
     private readonly ICompanyAccessService _companyAccessService;
     private readonly IAudioStorageService _audioStorageService;
+    private readonly IListenLogRepository _listenLogRepository;
     private readonly ILogger<RecordsController> _logger;
 
     public RecordsController(
         IRecordsRepository recordsRepository,
         ICompanyAccessService companyAccessService,
         IAudioStorageService audioStorageService,
+        IListenLogRepository listenLogRepository,
         ILogger<RecordsController> logger)
     {
         _recordsRepository = recordsRepository;
         _companyAccessService = companyAccessService;
         _audioStorageService = audioStorageService;
+        _listenLogRepository = listenLogRepository;
         _logger = logger;
     }
 
@@ -191,15 +195,36 @@ public class RecordsController : ControllerBase
             return NotFound(new { message = "Ses dosyası depoda bulunamadı." });
         }
 
-        // Dinleme olayının audit sistemine bildirilmesi burada, GERÇEK
-        // istekten (kimliği doğrulanmış kullanıcı + sunucu tarafı zaman
-        // damgası + IP) tetiklenir — bkz. frontend/src/services/
-        // auditLogService.ts başındaki not: "IP adresi veya zaman damgası
-        // client'tan ALINMAZ, backend'de üretilir." Audit endpoint'i
-        // henüz implemente edilmediği için burası TODO olarak bırakıldı;
-        // audit-log endpoint'leri eklenince buraya bir fire-and-forget
-        // çağrı (ör. _auditLogService.RecordListenEventAsync(...))
-        // eklenmeli.
+        try
+        {
+            if (userId is not null)
+            {
+                var userDisplayName =
+                    User.FindFirst("preferred_username")?.Value
+                    ?? User.FindFirst(ClaimTypes.Name)?.Value
+                    ?? userId;
+
+                var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "Rol atanmamış";
+
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                await _listenLogRepository.AddAsync(
+                    id,
+                    userId,
+                    userDisplayName,
+                    role,
+                    "Dinleme",
+                    ipAddress,
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Dinleme olayı audit sistemine kaydedilemedi: recordId={RecordId}, userId={UserId}",
+                id, userId);
+        }
 
         Response.Headers.ContentDisposition = "inline";
 

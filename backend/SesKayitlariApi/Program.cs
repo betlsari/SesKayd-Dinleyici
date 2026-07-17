@@ -11,13 +11,7 @@ using SesKayitlariApi.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---------------------------------------------------------------------
-// Veritabanı (EF Core)
-// ---------------------------------------------------------------------
-// SQL Server varsayıldı. Farklı bir veritabanı kullanılacaksa (ör.
-// PostgreSQL) sadece bu iki satır + ilgili NuGet paketi değişir,
-// Companies/RecordsRepository kodunun HİÇBİRİ değişmez (Npgsql.EntityFrameworkCore.PostgreSQL
-// + options.UseNpgsql(connectionString)).
+
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException(
         "appsettings.json içinde ConnectionStrings:Default tanımlı değil.");
@@ -25,31 +19,18 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Controllers/RecordsController.Support.cs içinde tanımlı sözleşmelerin
-// EF Core implementasyonları (Services/ klasörü).
+
 builder.Services.AddScoped<ICompanyAccessService, CompanyAccessService>();
 builder.Services.AddScoped<IRecordsRepository, RecordsRepository>();
+builder.Services.AddScoped<IListenLogRepository, ListenLogRepository>();
 
-// ---------------------------------------------------------------------
-// Keycloak yapılandırması (appsettings.json -> "Keycloak" bölümü)
-// ---------------------------------------------------------------------
-// KeycloakOptions.cs (Adım 1) burada bind ediliyor. Url/Realm/ClientId
-// değerleri frontend/.env'deki VITE_KEYCLOAK_* değerleriyle (ClientId
-// hariç, o API için ayrı olabilir) AYNI Keycloak sunucusunu/realm'ini
-// göstermeli — aksi halde frontend'de alınan token burada reddedilir.
-//
-// NOT: KeycloakOptions içinde bir "Authority" HESAPLANMIŞ property'si
-// olmalı, örn: Authority => $"{Url?.TrimEnd('/')}/realms/{Realm}"
-// Aşağıdaki kod bunun var olduğunu varsayıyor.
+
 builder.Services
     .AddOptions<KeycloakOptions>()
     .Bind(builder.Configuration.GetSection(KeycloakOptions.SectionName))
     .ValidateDataAnnotations();
 
-// Middleware kurulumu sırasında (henüz DI container hazır değilken)
-// KeycloakOptions'a ihtiyacımız var; bu yüzden configuration'dan
-// doğrudan da okuyoruz (yukarıdaki Options kaydı, controller'lar içinde
-// IOptions<KeycloakOptions> enjekte etmek isteyenler içindir).
+
 var keycloakOptions = builder.Configuration
     .GetSection(KeycloakOptions.SectionName)
     .Get<KeycloakOptions>()

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { CallRecord } from "../../types/record";
 import ListenLogsTable from "./ListenLogsTable";
-import { reportListenEvent } from "../../services/auditLogService";
+
 import "./AudioRecordingCard.css";
 
 interface AudioRecordingCardProps {
@@ -85,15 +85,8 @@ export default function AudioRecordingCard({
     [record.id],
   );
 
-  const hasReportedListenRef = useRef(false);
-
   useEffect(() => {
     if (isPlaying) {
-      if (!hasReportedListenRef.current) {
-        hasReportedListenRef.current = true;
-        reportListenEvent(record.id, "Dinleme");
-      }
-
       intervalRef.current = setInterval(() => {
         setElapsed((prev) => {
           const loopStartSec = selection

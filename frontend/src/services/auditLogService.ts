@@ -9,43 +9,30 @@ import type { ListenLog } from "../types/record";
 // döndürüyoruz (yapay gecikmeyle birlikte).
 //
 // .NET entegrasyonu hazır olduğunda SADECE bu dosyanın içi değişecek.
-// fetchListenLogs / reportListenEvent'i çağıran bileşenler
-// hiçbir şekilde değiştirilmeyecek.
+// fetchListenLogs'u çağıran bileşenler hiçbir şekilde değiştirilmeyecek.
 //
-// ÖNEMLİ AYRIM — READ vs. EVENT REPORTING:
-//   - fetchListenLogs: audit log sisteminden log KAYITLARINI okur.
-//     Bu KESİNLİKLE read-only'dir; bu uygulama üzerinden mevcut bir
-//     log satırı oluşturulamaz, güncellenemez veya silinemez (buraya
-//     doğrudan create/update/delete fonksiyonu eklenmemeli).
-//   - reportListenEvent: bu, log'u DOĞRUDAN yazmaz. Sadece "az önce
-//     şu kullanıcı şu kaydı dinledi" bilgisini audit sistemine
-//     BİLDİRİR; log satırını oluşturmak/imzalamak (kullanıcı IP'si,
-//     zaman damgası, rol bilgisi gibi güvenilir alanlarla) tamamen
-//     backend'in sorumluluğundadır. Frontend sahte bir log satırı
-//     oluşturmaz, sadece "bu olay oldu" der.
+// ÖNEMLİ — BU DOSYA SADECE OKUMA (READ) YAPAR:
+//   fetchListenLogs, audit log sisteminden log KAYITLARINI okur. Bu
+//   KESİNLİKLE read-only'dir; bu uygulama üzerinden mevcut bir log
+//   satırı oluşturulamaz, güncellenemez veya silinemez.
 //
-// NOT — "İndirme" NEDEN MOCK VERİDE YOK?
-//   Bu uygulamada (bkz. RecordsPage.tsx / AudioRecordingCard.tsx
-//   başındaki notlar) KASITLI olarak bir indirme butonu/özelliği YOK —
-//   ses kayıtları bu arayüz üzerinden hiçbir rolle indirilemez. Bu
-//   yüzden mock veri SADECE "Dinleme" üretir; demo/test ortamında
-//   "İndirme" satırları görünmesi yanlış bir izlenim yaratır (sanki
-//   bu uygulamadan indirme yapılabiliyormuş gibi).
+//   NOT (revizyon): Önceden burada bir reportListenEvent fonksiyonu da
+//   vardı — kullanıcı play'e bastığında frontend'den audit sistemine
+//   "dinleme oldu" bildirimi yapıyordu. Bu KALDIRILDI, çünkü:
+//     1) Frontend'den gelen bu sinyal güvenilir değildi (kullanıcı
+//        isteği engelleyebilir/manipüle edebilir, ya da play'e basıp
+//        hemen durdurabilir).
+//     2) Backend zaten GERÇEK ses akışını açtığı anda (bkz. backend
+//        RecordsController.GetRecordAudio) kimliği doğrulanmış istek
+//        bağlamından (kullanıcı/rol/IP/zaman sunucu tarafında üretilir)
+//        aynı "Dinleme" kaydını oluşturuyor.
+//     3) İki ayrı kaynaktan aynı olayı loglamak audit tablosunda çift
+//        satıra ve "hangisi gerçek kayıt?" belirsizliğine yol açıyordu.
+//   Artık audit kaydının TEK kaynağı backend'in audio stream endpoint'i.
+//   Bu dosya SADECE mevcut logları okumakla sorumlu.
 //
-//   ListenLog.action tipi yine de "İndirme" değerini KABUL EDER (bkz.
-//   types/record.ts) — çünkü gerçek backend'e bağlanınca audit log
-//   sistemi, bu frontend'in DIŞINDAKİ kanallardan (örn. backoffice
-//   aracı, doğrudan API erişimi) gelen gerçek indirme olaylarını da
-//   döndürebilir. O noktada bu dosyanın SADECE mock üretim kısmı
-//   (aşağıdaki generateMockListenLogs) gerçek API çağrısıyla
-//   değiştirilecek ve gerçek "İndirme" kayıtları varsa doğal olarak
-//   görünecektir. Şu an için, bu uygulama üzerinden asla indirme
-//   olayı ÜRETİLMEZ (reportListenEvent hep "Dinleme" ile çağrılır,
-//   bkz. AudioRecordingCard.tsx) ve mock veri de bunu yansıtır.
-//
-// Planlanan gerçek endpoint'ler:
-//   GET  /api/audit-log/records/{recordId}/listen-logs
-//   POST /api/audit-log/records/{recordId}/events
+// Planlanan gerçek endpoint:
+//   GET /api/audit-log/records/{recordId}/listen-logs
 // =====================================================================
 
 const MOCK_VIEWERS = [
@@ -56,7 +43,7 @@ const MOCK_VIEWERS = [
 
 // Bu uygulamada indirme özelliği olmadığı için mock veri SADECE
 // "Dinleme" üretir (bkz. dosya başındaki "İndirme NEDEN MOCK VERİDE
-// YOK?" notu).
+// YOK?" notu — CallRecord/AudioRecordingCard tarafında).
 const MOCK_ACTIONS: ListenLog["action"][] = ["Dinleme"];
 
 // recordId'den basit, deterministik bir sayısal seed türetiyoruz
@@ -104,56 +91,4 @@ export async function fetchListenLogs(recordId: string): Promise<ListenLog[]> {
   // Gerçek bir ağ çağrısını simüle etmek için küçük bir gecikme koyuyoruz.
   await new Promise((resolve) => setTimeout(resolve, 350));
   return generateMockListenLogs(recordId);
-}
-
-export type ListenEventAction = "Dinleme" | "İndirme";
-
-/**
- * Kullanıcı bir kaydı dinlemeye başladığında bu olayı audit log
- * sistemine bildirir. Bu fonksiyon bir log SATIRI OLUŞTURMAZ; sadece
- * backend'e "şu olay oldu" der. Gerçek log satırı (zaman damgası, IP
- * adresi, kullanıcı/rol bilgisi gibi güvenilir alanlarla) backend
- * tarafında, kimlik doğrulanmış istek bağlamından üretilmelidir — bu
- * yüzden burada IP adresi veya zaman damgası GÖNDERMİYORUZ; bunları
- * client'tan almak sahte/yanıltıcı audit kaydına yol açar.
- *
- * NOT: Bu uygulamada indirme özelliği olmadığı için, bu fonksiyon
- * pratikte HER ZAMAN "Dinleme" ile çağrılır (bkz. AudioRecordingCard.tsx).
- * "İndirme" parametre tipinde duruyor çünkü servis imzası, ileride aynı
- * audit sistemini paylaşan başka bir istemci (örn. backoffice aracı)
- * için genel tutuldu — ama BU uygulama asla bu değeri göndermez.
- *
- * Ağ hatası oluşursa bu, dinleme deneyimini KESMEMELİDİR — bu yüzden
- * hata sessizce yutulur (en fazla konsola loglanır). Bir audit bildirim
- * hatası yüzünden kullanıcının kaydı dinleyememesi kabul edilemez bir
- * kullanıcı deneyimi olur.
- *
- * TODO: .NET API hazır olunca aşağıdaki mock bloğunu şununla değiştir:
- *
- *   const response = await fetch(`/api/audit-log/records/${recordId}/events`, {
- *     method: "POST",
- *     headers: { "Content-Type": "application/json" },
- *     body: JSON.stringify({ action }),
- *   });
- *   if (!response.ok) {
- *     throw new Error("Dinleme olayı bildirilemedi");
- *   }
- */
-export async function reportListenEvent(
-  recordId: string,
-  action: ListenEventAction,
-): Promise<void> {
-  try {
-    // Gerçek bir ağ çağrısını simüle etmek için küçük bir gecikme koyuyoruz.
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    // eslint-disable-next-line no-console
-    console.log(`[audit] ${action} olayı bildirildi -> recordId=${recordId}`);
-  } catch (error) {
-    // Bildirim başarısız olsa bile kullanıcı deneyimini bozmuyoruz.
-    // eslint-disable-next-line no-console
-    console.error(
-      "Dinleme/indirme olayı audit sistemine bildirilemedi:",
-      error,
-    );
-  }
 }
