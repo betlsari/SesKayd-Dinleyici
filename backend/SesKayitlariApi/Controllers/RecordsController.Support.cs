@@ -77,9 +77,6 @@ public class PagedResult<T>
 // ---- Repository sözleşmesi ----------------------------------------------
 public interface IRecordsRepository
 {
-    // TODO: EF Core ile implemente et. companyId ZATEN kriter içinde
-    // olduğu için sorgu, veritabanı seviyesinde WHERE CompanyId = @companyId
-    // ile filtrelenmeli — tüm tabloyu çekip bellekte filtrelemek YAPMA.
     Task<PagedResult<CallRecordDto>> SearchAsync(
         RecordsSearchCriteria criteria,
         CancellationToken cancellationToken);
@@ -87,6 +84,24 @@ public interface IRecordsRepository
     Task<CallRecordDto?> GetByIdAsync(string id, CancellationToken cancellationToken);
 
     Task DeleteAsync(string id, CancellationToken cancellationToken);
+
+    // Ses dosyası stream endpoint'i (RecordsController.GetRecordAudio)
+    // için: CompanyId (yetki kontrolü) ve AudioStoragePath'i (dosyaya
+    // erişim) birlikte döner. Bu bilgi ASLA CallRecordDto üzerinden
+    // frontend'e GİTMEZ (bkz. CallRecordDto'da AudioStoragePath alanı
+    // KASITLI OLARAK yok) — ayrı, dar kapsamlı bir sorgu tercih edildi.
+    Task<AudioLookupResult?> GetAudioLookupAsync(
+        string id,
+        CancellationToken cancellationToken);
+}
+
+// GetAudioLookupAsync'in dar kapsamlı sonucu — tüm CallRecordDto'yu
+// çekmek yerine sadece yetki kontrolü + dosya erişimi için gereken
+// iki alanı taşır.
+public class AudioLookupResult
+{
+    public int CompanyId { get; set; }
+    public string? AudioStoragePath { get; set; }
 }
 
 // ---- Şirket erişim kontrolü sözleşmesi -----------------------------------

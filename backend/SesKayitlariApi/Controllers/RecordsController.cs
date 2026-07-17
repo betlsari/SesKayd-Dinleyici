@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SesKayitlariApi.Storage;
 
 namespace SesKayitlariApi.Controllers;
 
@@ -11,15 +12,18 @@ public class RecordsController : ControllerBase
 {
     private readonly IRecordsRepository _recordsRepository;
     private readonly ICompanyAccessService _companyAccessService;
+    private readonly IAudioStorageService _audioStorageService;
     private readonly ILogger<RecordsController> _logger;
 
     public RecordsController(
         IRecordsRepository recordsRepository,
         ICompanyAccessService companyAccessService,
+        IAudioStorageService audioStorageService,
         ILogger<RecordsController> logger)
     {
         _recordsRepository = recordsRepository;
         _companyAccessService = companyAccessService;
+        _audioStorageService = audioStorageService;
         _logger = logger;
     }
 
@@ -122,6 +126,87 @@ public class RecordsController : ControllerBase
         }
 
         return Ok(record);
+    }
+
+    // GET /api/records/{id}/audio
+    // AudioRecordingCard.tsx içindeki oynatıcı bu endpoint'i <audio>
+    // veya fetch+stream ile çağıracak.
+    //
+    // TASARIM DOKÜMANI MADDE 3: "Ses kayıtlarının indirilmesine izin
+    // verilmeyecektir. Yetki bazlı tutulmalıdır." — bu yüzden:
+    //   1) Content-Disposition: inline (attachment DEĞİL) döndürülür,
+    //      tarayıcının "farklı kaydet" davranışını tetiklemeyiz.
+    //   2) enableRangeProcessing:true ile HTTP Range desteği açılır —
+    //      bu, hem waveform üzerinde ileri/geri sarmayı (AudioRecordingCard
+    //      seekBy) verimli kılar HEM DE dosyanın tamamını tek seferde
+    //      indirmek yerine parça parça (streaming) sunulmasını sağlar.
+    //   3) Aynı şirket-scope kontrolü BURADA DA tekrarlanır — id
+    //      bilindiği için başka şirketin ses kaydına erişilmesin.
+    [HttpGet("{id}/audio")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRecordAudio(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var lookup = await _recordsRepository.GetAudioLookupAsync(id, cancellationToken);
+        if (lookup is null)
+        {
+            return NotFound();
+        }
+
+        // AYNI şirket-scope kontrolü (RecordsController'daki diğer
+        // endpoint'lerle BİREBİR aynı desen) — id biliniyor diye
+        // kullanıcı başka şirketin ses kaydını dinleyemez.
+        var hasAccess = await _companyAccessService.UserHasAccessAsync(
+            userId, lookup.CompanyId, cancellationToken);
+        if (!hasAccess)
+        {
+            _logger.LogWarning(
+                "Yetkisiz ses kaydı erişim denemesi: userId={UserId}, recordId={RecordId}",
+                userId, id);
+            return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(lookup.AudioStoragePath))
+        {
+            // Kayıt var ama ses dosyası henüz depoya yüklenmemiş/
+            // taşınmamış (bkz. Data/Entities.cs -> AudioStoragePath
+            // alanındaki not).
+            return NotFound(new { message = "Bu kayıt için ses dosyası bulunamadı." });
+        }
+
+        var audio = await _audioStorageService.OpenReadAsync(
+            lookup.AudioStoragePath, cancellationToken);
+        if (audio is null)
+        {
+            return NotFound(new { message = "Ses dosyası depoda bulunamadı." });
+        }
+
+        // Dinleme olayının audit sistemine bildirilmesi burada, GERÇEK
+        // istekten (kimliği doğrulanmış kullanıcı + sunucu tarafı zaman
+        // damgası + IP) tetiklenir — bkz. frontend/src/services/
+        // auditLogService.ts başındaki not: "IP adresi veya zaman damgası
+        // client'tan ALINMAZ, backend'de üretilir." Audit endpoint'i
+        // henüz implemente edilmediği için burası TODO olarak bırakıldı;
+        // audit-log endpoint'leri eklenince buraya bir fire-and-forget
+        // çağrı (ör. _auditLogService.RecordListenEventAsync(...))
+        // eklenmeli.
+
+        Response.Headers.ContentDisposition = "inline";
+
+        return File(
+            audio.Stream,
+            audio.ContentType,
+            enableRangeProcessing: true);
     }
 
     // DELETE /api/records/{id}

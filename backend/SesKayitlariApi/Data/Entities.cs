@@ -45,11 +45,10 @@ public class CallRecordEntity
     public int FileSizeKB { get; set; }
     public string Format { get; set; } = default!;
 
-    // TODO: Ses dosyasının fiziksel/obje depolama konumu (ör. blob
-    // storage path/URL) burada tutulmalı — henüz eklenmedi çünkü
-    // depolama stratejisi (yerel disk / S3-uyumlu / Azure Blob) netleşene
-    // kadar bilinçli olarak dışarıda bırakıldı. Netleşince örn.
-    // "AudioStoragePath" alanı buraya eklenmeli.
+    // Ses dosyasının fiziksel/obje depolama konumundaki göreceli yolu
+    // (ör. "2026/07/rec-12.wav"). MUTLAK path veya URL tutulmaz.
+    // Depolama kökü appsettings'te ayrı tutulur.
+    public string? AudioStoragePath { get; set; }
 }
 
 // Kullanıcı-şirket atama tablosu. Keycloak token'ı SADECE kimliği

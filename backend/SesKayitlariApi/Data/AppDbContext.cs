@@ -31,6 +31,8 @@ public class AppDbContext : DbContext
             entity.Property(r => r.Username).IsRequired().HasMaxLength(100);
             entity.Property(r => r.CallId).IsRequired().HasMaxLength(64);
             entity.Property(r => r.Format).IsRequired().HasMaxLength(16);
+            entity.Property(r => r.Format).IsRequired().HasMaxLength(16);
+            entity.Property(r => r.AudioStoragePath).HasMaxLength(500);
 
             entity
                 .HasOne(r => r.Company)

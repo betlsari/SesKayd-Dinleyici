@@ -7,6 +7,7 @@ using SesKayitlariApi.Data;
 using SesKayitlariApi.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
+using SesKayitlariApi.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -155,6 +156,16 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+builder.Services
+    .AddOptions<AudioStorageOptions>()
+    .Bind(builder.Configuration.GetSection(AudioStorageOptions.SectionName));
+
+// Şu an TEK implementasyon (yerel disk). S3/Azure Blob eklenirse
+// burada Provider değerine göre farklı bir implementasyon seçilebilir
+// (ör. switch (audioStorageOptions.Provider) { ... }) — RecordsController
+// ve IAudioStorageService arayüzü DEĞİŞMEDEN kalır.
+builder.Services.AddScoped<IAudioStorageService, LocalDiskAudioStorageService>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Ses Kayitlari API", Version = "v1" });

@@ -146,4 +146,22 @@ public class RecordsRepository : IRecordsRepository
         Format = r.Format,
         CompanyId = r.CompanyId,
     };
+    public async Task<AudioLookupResult?> GetAudioLookupAsync(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        // Select ile SADECE gereken iki alanı çekiyoruz — Company
+        // navigation'ını include etmeye gerek yok, gereksiz JOIN'den
+        // kaçınıyoruz (bu endpoint sık çağrılabilir: her dinleme
+        // başlangıcında).
+        return await _db.CallRecords
+            .AsNoTracking()
+            .Where(r => r.Id == id)
+            .Select(r => new AudioLookupResult
+            {
+                CompanyId = r.CompanyId,
+                AudioStoragePath = r.AudioStoragePath,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }
