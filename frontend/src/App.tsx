@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import type { Company } from "./components/layout/Topbar";
 import RecordsPage from "./pages/RecordsPage";
+import ComingSoonPage from "./pages/ComingSoonPage";
 import { canAccessPath } from "./auth/permissions";
 import { AuthProvider } from "./auth/AuthProvider";
 import { useAuth } from "./auth/AuthContext";
@@ -86,15 +87,24 @@ function AuthenticatedApp() {
               />
             }
           />
-          <Route path="/arama-kayitlari" element={<div>Arama kayıtları</div>} />
-          <Route path="/istatistikler" element={<div>İstatistikler</div>} />
-          <Route path="/raporlar" element={<div>Raporlar</div>} />
+          <Route
+            path="/arama-kayitlari"
+            element={<ComingSoonPage title="Arama Kayıtları" />}
+          />
+          <Route
+            path="/istatistikler"
+            element={<ComingSoonPage title="İstatistikler" />}
+          />
+          <Route
+            path="/raporlar"
+            element={<ComingSoonPage title="Raporlar" />}
+          />
 
           <Route
             path="/kullanicilar"
             element={
               <ProtectedRoute path="/kullanicilar" role={currentUserRole}>
-                <div>Kullanıcılar</div>
+                <ComingSoonPage title="Kullanıcılar" />
               </ProtectedRoute>
             }
           />
@@ -102,7 +112,7 @@ function AuthenticatedApp() {
             path="/roller"
             element={
               <ProtectedRoute path="/roller" role={currentUserRole}>
-                <div>Roller</div>
+                <ComingSoonPage title="Roller" />
               </ProtectedRoute>
             }
           />
@@ -110,7 +120,7 @@ function AuthenticatedApp() {
             path="/sirketler"
             element={
               <ProtectedRoute path="/sirketler" role={currentUserRole}>
-                <div>Şirketler</div>
+                <ComingSoonPage title="Şirketler" />
               </ProtectedRoute>
             }
           />
@@ -118,7 +128,7 @@ function AuthenticatedApp() {
             path="/audit-log"
             element={
               <ProtectedRoute path="/audit-log" role={currentUserRole}>
-                <div>Audit Log</div>
+                <ComingSoonPage title="Audit Log" />
               </ProtectedRoute>
             }
           />
@@ -129,7 +139,7 @@ function AuthenticatedApp() {
                 path="/api-entegrasyonlari"
                 role={currentUserRole}
               >
-                <div>API Entegrasyonları</div>
+                <ComingSoonPage title="API Entegrasyonları" />
               </ProtectedRoute>
             }
           />
@@ -137,12 +147,15 @@ function AuthenticatedApp() {
             path="/ayarlar"
             element={
               <ProtectedRoute path="/ayarlar" role={currentUserRole}>
-                <div>Ayarlar</div>
+                <ComingSoonPage title="Ayarlar" />
               </ProtectedRoute>
             }
           />
 
-          <Route path="*" element={<div>Kayıtlar sayfasını seçin</div>} />
+          <Route
+            path="*"
+            element={<ComingSoonPage title="Kayıtlar sayfasını seçin" />}
+          />
         </Routes>
       </Layout>
     </BrowserRouter>

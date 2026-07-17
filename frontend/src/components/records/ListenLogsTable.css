@@ -1,0 +1,106 @@
+.listen-logs {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.listen-logs h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 12px;
+}
+
+.listen-logs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.listen-logs-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.listen-logs-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: nowrap;
+}
+
+.listen-logs-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.listen-logs-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.listen-logs-table .sortable-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.listen-logs-table .sortable-header:hover {
+  color: #374151;
+}
+
+.listen-logs-table .sortable-header:focus-visible {
+  outline: 2px solid #7c5cfc;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.listen-logs-status {
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px 12px;
+  font-size: 13px;
+}
+
+.listen-logs-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #ef4444;
+}
+
+/* "Dinleme" bu uygulama üzerinden yapılır (mor); "İndirme" ise bu
+   uygulamada asla tetiklenmez ama audit sisteminden başka kanaldan
+   (örn. backoffice aracı) gelebilir (turuncu) — bkz. auditLogService.ts
+   ve ListenLogsTable.tsx içindeki açıklayıcı notlar. */
+.listen-log-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.listen-log-badge-listen {
+  background: rgba(124, 92, 252, 0.12);
+  color: #6d4de6;
+}
+
+.listen-log-badge-download {
+  background: rgba(249, 115, 22, 0.12);
+  color: #c2560d;
+}

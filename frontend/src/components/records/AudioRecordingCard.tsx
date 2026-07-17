@@ -32,14 +32,26 @@ function formatTime(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-// Dalga formu görünümü için sabit (deterministik) ama rastgele görünen çubuklar
-// üretiyoruz. Gerçek ses dosyası bağlanınca bu, decode edilen audio buffer'dan
-// hesaplanacak (TODO: backend entegrasyonu).
-function buildWaveformBars(count: number): number[] {
-  let seed = 42;
+// recordId'den basit, deterministik bir sayısal seed türetiyoruz
+// (örn. "rec-12" -> 12). auditLogService.ts'teki seedFromRecordId ile
+// aynı yaklaşım — burada tekrar tanımlıyoruz çünkü bu iki dosyanın
+// birbirine bağımlı olmasını istemiyoruz (audit log ve waveform
+// tamamen ayrı kavramlar, sadece "id'den deterministik sayı üretme"
+// tekniğini paylaşıyorlar).
+function seedFromRecordId(recordId: string): number {
+  return Number(recordId.replace(/\D/g, "")) || 1;
+}
+
+// Dalga formu görünümü için deterministik ama rastgele görünen çubuklar
+// üretiyoruz. Seed, kayıt id'sinden türetiliyor ki HER KAYIT kendine
+// özgü (ama sayfa yeniden render olsa da değişmeyen) bir waveform
+// şekline sahip olsun. Gerçek ses dosyası bağlanınca bu, decode edilen
+// audio buffer'dan hesaplanacak (TODO: backend entegrasyonu).
+function buildWaveformBars(count: number, seed: number): number[] {
+  let value = seed;
   return Array.from({ length: count }, () => {
-    seed = (seed * 9301 + 49297) % 233280;
-    const rand = seed / 233280;
+    value = (value * 9301 + 49297) % 233280;
+    const rand = value / 233280;
     return 6 + Math.round(rand * 26);
   });
 }
@@ -68,7 +80,10 @@ export default function AudioRecordingCard({
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const waveformRef = useRef<HTMLDivElement>(null);
-  const waveformBars = useMemo(() => buildWaveformBars(WAVEFORM_BAR_COUNT), []);
+  const waveformBars = useMemo(
+    () => buildWaveformBars(WAVEFORM_BAR_COUNT, seedFromRecordId(record.id)),
+    [record.id],
+  );
 
   const hasReportedListenRef = useRef(false);
 

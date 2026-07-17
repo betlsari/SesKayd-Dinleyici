@@ -18,6 +18,18 @@ function parseLogDateTime(value: string): number {
   return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
 }
 
+// "Dinleme" bu uygulama üzerinden yapılır; "İndirme" ise bu uygulamada
+// hiçbir zaman tetiklenmez ama audit sistemi başka kanallardan (örn.
+// backoffice aracı) gelen indirme olaylarını da gösterebilir (bkz.
+// auditLogService.ts başındaki "İndirme NEREDEN GELİYOR?" notu). Bu
+// rozet, kullanıcının iki farklı kaynaktan gelen olayı ayırt etmesini
+// kolaylaştırır.
+function actionBadgeClass(action: ListenLog["action"]): string {
+  return action === "İndirme"
+    ? "listen-log-badge listen-log-badge-download"
+    : "listen-log-badge listen-log-badge-listen";
+}
+
 export default function ListenLogsTable({ recordId }: ListenLogsTableProps) {
   const [logs, setLogs] = useState<ListenLog[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
@@ -109,7 +121,11 @@ export default function ListenLogsTable({ recordId }: ListenLogsTableProps) {
                 <td>{log.dateTime}</td>
                 <td>{log.user}</td>
                 <td>{log.role}</td>
-                <td>{log.action}</td>
+                <td>
+                  <span className={actionBadgeClass(log.action)}>
+                    {log.action}
+                  </span>
+                </td>
                 <td>{log.ipAddress}</td>
               </tr>
             ))}

@@ -61,6 +61,17 @@ function parseDateTime(value: string): number {
   return new Date(year, month - 1, day, hour, minute).getTime();
 }
 
+// record.dateTime "dd.MM.yyyy HH:mm" formatında; <input type="date">
+// ise "yyyy-MM-dd" formatında değer üretir (filters.dateFrom/dateTo).
+// İkisini karşılaştırabilmek için kaydın tarihini de "yyyy-MM-dd"
+// formatına çeviriyoruz. Bu format sabit uzunlukta olduğu için
+// doğrudan string karşılaştırması (<, >) doğru sonucu verir.
+function recordDateOnly(dateTime: string): string {
+  const [datePart] = dateTime.split(" ");
+  const [day, month, year] = datePart.split(".");
+  return `${year}-${month}-${day}`;
+}
+
 type ActiveTab = "list" | "detail";
 
 interface RecordsPageProps {
@@ -130,6 +141,16 @@ export default function RecordsPage({
     if (!filters) return companyScopedRecords;
 
     return companyScopedRecords.filter((record) => {
+      const recordDate = recordDateOnly(record.dateTime);
+
+      // Tarih aralığı filtresi ("yyyy-MM-dd" string karşılaştırması).
+      if (filters.dateFrom && recordDate < filters.dateFrom) {
+        return false;
+      }
+      if (filters.dateTo && recordDate > filters.dateTo) {
+        return false;
+      }
+
       if (
         filters.callerNumber &&
         !record.callerNumber.includes(filters.callerNumber)

@@ -18,11 +18,30 @@ import type { ListenLog } from "../types/record";
 //     log satırı oluşturulamaz, güncellenemez veya silinemez (buraya
 //     doğrudan create/update/delete fonksiyonu eklenmemeli).
 //   - reportListenEvent: bu, log'u DOĞRUDAN yazmaz. Sadece "az önce
-//     şu kullanıcı şu kaydı dinledi/indirdi" bilgisini audit sistemine
+//     şu kullanıcı şu kaydı dinledi" bilgisini audit sistemine
 //     BİLDİRİR; log satırını oluşturmak/imzalamak (kullanıcı IP'si,
 //     zaman damgası, rol bilgisi gibi güvenilir alanlarla) tamamen
 //     backend'in sorumluluğundadır. Frontend sahte bir log satırı
 //     oluşturmaz, sadece "bu olay oldu" der.
+//
+// NOT — "İndirme" NEDEN MOCK VERİDE YOK?
+//   Bu uygulamada (bkz. RecordsPage.tsx / AudioRecordingCard.tsx
+//   başındaki notlar) KASITLI olarak bir indirme butonu/özelliği YOK —
+//   ses kayıtları bu arayüz üzerinden hiçbir rolle indirilemez. Bu
+//   yüzden mock veri SADECE "Dinleme" üretir; demo/test ortamında
+//   "İndirme" satırları görünmesi yanlış bir izlenim yaratır (sanki
+//   bu uygulamadan indirme yapılabiliyormuş gibi).
+//
+//   ListenLog.action tipi yine de "İndirme" değerini KABUL EDER (bkz.
+//   types/record.ts) — çünkü gerçek backend'e bağlanınca audit log
+//   sistemi, bu frontend'in DIŞINDAKİ kanallardan (örn. backoffice
+//   aracı, doğrudan API erişimi) gelen gerçek indirme olaylarını da
+//   döndürebilir. O noktada bu dosyanın SADECE mock üretim kısmı
+//   (aşağıdaki generateMockListenLogs) gerçek API çağrısıyla
+//   değiştirilecek ve gerçek "İndirme" kayıtları varsa doğal olarak
+//   görünecektir. Şu an için, bu uygulama üzerinden asla indirme
+//   olayı ÜRETİLMEZ (reportListenEvent hep "Dinleme" ile çağrılır,
+//   bkz. AudioRecordingCard.tsx) ve mock veri de bunu yansıtır.
 //
 // Planlanan gerçek endpoint'ler:
 //   GET  /api/audit-log/records/{recordId}/listen-logs
@@ -35,7 +54,10 @@ const MOCK_VIEWERS = [
   { user: "mehmet.can", role: "Supervisor" },
 ];
 
-const MOCK_ACTIONS: ListenLog["action"][] = ["Dinleme", "İndirme"];
+// Bu uygulamada indirme özelliği olmadığı için mock veri SADECE
+// "Dinleme" üretir (bkz. dosya başındaki "İndirme NEDEN MOCK VERİDE
+// YOK?" notu).
+const MOCK_ACTIONS: ListenLog["action"][] = ["Dinleme"];
 
 // recordId'den basit, deterministik bir sayısal seed türetiyoruz
 // (örn. "rec-12" -> 12) ki her kayıt için tutarlı mock veri üretilsin.
@@ -87,18 +109,24 @@ export async function fetchListenLogs(recordId: string): Promise<ListenLog[]> {
 export type ListenEventAction = "Dinleme" | "İndirme";
 
 /**
- * Kullanıcı bir kaydı dinlemeye başladığında veya indirdiğinde bu olayı
- * audit log sistemine bildirir. Bu fonksiyon bir log SATIRI OLUŞTURMAZ;
- * sadece backend'e "şu olay oldu" der. Gerçek log satırı (zaman damgası,
- * IP adresi, kullanıcı/rol bilgisi gibi güvenilir alanlarla) backend
- * tarafında, kimlik doğrulanmış istek bağlamından üretilmelidir —
- * bu yüzden burada IP adresi veya zaman damgası GÖNDERMİYORUZ; bunları
+ * Kullanıcı bir kaydı dinlemeye başladığında bu olayı audit log
+ * sistemine bildirir. Bu fonksiyon bir log SATIRI OLUŞTURMAZ; sadece
+ * backend'e "şu olay oldu" der. Gerçek log satırı (zaman damgası, IP
+ * adresi, kullanıcı/rol bilgisi gibi güvenilir alanlarla) backend
+ * tarafında, kimlik doğrulanmış istek bağlamından üretilmelidir — bu
+ * yüzden burada IP adresi veya zaman damgası GÖNDERMİYORUZ; bunları
  * client'tan almak sahte/yanıltıcı audit kaydına yol açar.
  *
- * Ağ hatası oluşursa bu, oynatma/indirme deneyimini KESMEMELİDİR — bu
- * yüzden hata sessizce yutulur (en fazla konsola loglanır). Bir audit
- * bildirim hatası yüzünden kullanıcının kaydı dinleyememesi kabul
- * edilemez bir kullanıcı deneyimi olur.
+ * NOT: Bu uygulamada indirme özelliği olmadığı için, bu fonksiyon
+ * pratikte HER ZAMAN "Dinleme" ile çağrılır (bkz. AudioRecordingCard.tsx).
+ * "İndirme" parametre tipinde duruyor çünkü servis imzası, ileride aynı
+ * audit sistemini paylaşan başka bir istemci (örn. backoffice aracı)
+ * için genel tutuldu — ama BU uygulama asla bu değeri göndermez.
+ *
+ * Ağ hatası oluşursa bu, dinleme deneyimini KESMEMELİDİR — bu yüzden
+ * hata sessizce yutulur (en fazla konsola loglanır). Bir audit bildirim
+ * hatası yüzünden kullanıcının kaydı dinleyememesi kabul edilemez bir
+ * kullanıcı deneyimi olur.
  *
  * TODO: .NET API hazır olunca aşağıdaki mock bloğunu şununla değiştir:
  *
